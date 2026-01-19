@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"sakucita/internal/domain"
+	"sakucita/internal/shared/utils"
 	"sakucita/pkg/config"
 
 	"github.com/go-playground/validator/v10"
@@ -40,6 +41,8 @@ func (h *Handler) loginLocal(c *fiber.Ctx) error {
 	if err := h.validator.Struct(req); err != nil {
 		return err
 	}
+
+	req.ClientInfo = utils.ExtractClientInfo(c)
 
 	res, err := h.authService.LoginLocal(c.Context(), req)
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"sakucita/internal/database/repository"
 	"sakucita/internal/domain"
 	"sakucita/internal/server"
+	"sakucita/internal/server/security"
 	"sakucita/pkg/config"
 	"sakucita/pkg/logger"
 
@@ -23,11 +24,21 @@ func main() {
 
 	queries := repository.New(databases.postgres)
 
-	services := serviceProvider(log, databases, queries)
+	security := securityProvider(cfg, log, databases.redis)
+
+	services := serviceProvider(cfg, log, databases, queries, security)
 
 	serverHttp := ServerHTTPProvider(cfg, log, services)
 
 	serverHttp.Start()
+}
+
+// security provider
+func securityProvider(cfg config.App, log zerolog.Logger, rdb *redis.Client) *security.Security {
+	security := security.NewSecurity(cfg, log, rdb)
+	security.LoadRSAKeys(cfg.JWT.KeyDirPath)
+
+	return security
 }
 
 // service provider
@@ -35,9 +46,9 @@ type services struct {
 	authService domain.AuthService
 }
 
-func serviceProvider(log zerolog.Logger, databases *databases, queries *repository.Queries) *services {
+func serviceProvider(config config.App, log zerolog.Logger, databases *databases, queries *repository.Queries, security *security.Security) *services {
 	return &services{
-		authService: authService.NewService(databases.postgres, queries, log),
+		authService: authService.NewService(databases.postgres, queries, config, security, log),
 	}
 }
 
@@ -65,7 +76,7 @@ func databaseProvider(cfg config.App, log zerolog.Logger) *databases {
 
 // config provider
 func configProvider() config.App {
-	cfg, err := config.New()
+	cfg, err := config.New("./config.yaml")
 	if err != nil {
 		panic(err)
 	}

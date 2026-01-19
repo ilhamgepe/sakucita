@@ -2,25 +2,33 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
+	"fmt"
 
 	"sakucita/internal/database/repository"
 	"sakucita/internal/domain"
+	"sakucita/internal/server/security"
 	"sakucita/internal/shared/utils"
+	"sakucita/pkg/config"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/zerolog"
 )
 
 type service struct {
-	db  *pgxpool.Pool
-	q   *repository.Queries
-	log zerolog.Logger
+	db       *pgxpool.Pool
+	q        *repository.Queries
+	config   config.App
+	security *security.Security
+	log      zerolog.Logger
 }
 
-func NewService(db *pgxpool.Pool, q *repository.Queries, log zerolog.Logger) domain.AuthService {
-	return &service{db, q, log}
+func NewService(db *pgxpool.Pool, q *repository.Queries, config config.App, security *security.Security, log zerolog.Logger) domain.AuthService {
+	return &service{db, q, config, security, log}
 }
 
 func (s *service) LoginLocal(ctx context.Context, req domain.LoginRequest) (*domain.LoginResponse, error) {
@@ -69,10 +77,56 @@ func (s *service) LoginLocal(ctx context.Context, req domain.LoginRequest) (*dom
 	}
 
 	// generate token
+	accessTokenID := uuid.New()
+	accessToken, _, err := s.security.GenerateToken(userResponse.ID, accessTokenID, roles, s.config.JWT.AccessTokenExpiresIn)
+	if err != nil {
+		s.log.Error().Err(err).Msg("failed to generate access token")
+		return nil, domain.ErrInternalServerError
+	}
+
+	// generate refresh token
+	refreshTokenID := uuid.New()
+	refreshToken, rtClaims, err := s.security.GenerateToken(userResponse.ID, refreshTokenID, roles, s.config.JWT.RefreshTokenExpiresIn)
+	if err != nil {
+		s.log.Error().Err(err).Msg("failed to generate refresh token")
+		return nil, domain.ErrInternalServerError
+	}
+
+	// delete all session if user activate single session
+	if userResponse.SingleSession {
+		s.q.RevokeAllSessionsByUserID(ctx, userResponse.ID)
+	}
+
+	// device id
+	hash := sha256.Sum256([]byte(fmt.Sprintf("%s:%v", userResponse.ID.String(), req.ClientInfo)))
+	deviceID := fmt.Sprintf("%x", hash)
+	// create session
+	_, err = s.q.CreateSession(ctx, repository.CreateSessionParams{
+		UserID:   userResponse.ID,
+		DeviceID: deviceID,
+		RefreshTokenID: pgtype.UUID{
+			Bytes: refreshTokenID,
+			Valid: true,
+		},
+		ExpiresAt: pgtype.Timestamptz{
+			Time:  rtClaims.ExpiresAt.Time,
+			Valid: true,
+		},
+		Meta: map[string]any{
+			"ip":          req.ClientInfo.IP,
+			"user_agent":  req.ClientInfo.UserAgent,
+			"device_name": req.ClientInfo.DeviceName,
+		},
+	})
+	if err != nil {
+		s.log.Error().Err(err).Msg("failed to create session")
+		return nil, domain.ErrInternalServerError
+	}
+
 	return &domain.LoginResponse{
 		User:         userResponse,
-		AccessToken:  "AT",
-		RefreshToken: "RT",
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
 	}, nil
 }
 

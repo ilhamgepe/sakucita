@@ -12,12 +12,15 @@ import (
 
 type Querier interface {
 	CreateAuthIdentityLocal(ctx context.Context, arg CreateAuthIdentityLocalParams) error
+	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateUserRole(ctx context.Context, arg CreateUserRoleParams) error
 	GetAuthIdentityByEmail(ctx context.Context, providerID string) (AuthIdentity, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByIDWithRoles(ctx context.Context, id uuid.UUID) (GetUserByIDWithRolesRow, error)
+	RevokeAllSessionsByUserID(ctx context.Context, userID uuid.UUID) error
+	RevokeSessionByID(ctx context.Context, arg RevokeSessionByIDParams) error
 }
 
 var _ Querier = (*Queries)(nil)

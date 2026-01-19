@@ -18,8 +18,15 @@ type RegisterRequest struct {
 }
 
 type LoginRequest struct {
-	Email    string `json:"email" form:"email" validate:"required,email"`
-	Password string `json:"password" form:"password" validate:"required,min=8,max=200"`
+	Email      string `json:"email" form:"email" validate:"required,email"`
+	Password   string `json:"password" form:"password" validate:"required,min=8,max=200"`
+	ClientInfo ClientInfo
+}
+
+type ClientInfo struct {
+	IP         string `json:"ip"`
+	UserAgent  string `json:"user_agent"`
+	DeviceName string `json:"device_name"`
 }
 
 type LoginResponse struct {

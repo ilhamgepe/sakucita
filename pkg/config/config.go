@@ -48,10 +48,13 @@ type Redis struct {
 	Password string `mapstructure:"password"`
 }
 
-func New() (App, error) {
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
+func New(path string) (App, error) {
+	if path != "" {
+		viper.SetConfigFile(path)
+	} else {
+		// Fallback default jika path kosong
+		viper.SetConfigFile("./config.yaml")
+	}
 
 	var cfg App
 	if err := viper.ReadInConfig(); err != nil {
