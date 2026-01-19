@@ -1,0 +1,14 @@
+# General
+.DS_Store
+
+# tmp
+tmp/
+
+# env
+config.yaml
+.env
+*.pem
+*.pub
+Makefile
+
+
