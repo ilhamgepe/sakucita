@@ -1,0 +1,35 @@
+server:
+  addr: "localhost"
+  port: "8888"
+  env: "development"
+
+jwt:
+  active_key_id: "18012026"
+  key_dir_path: "./keys"
+  access_token_expires_in: 10m
+  refresh_token_expires_in: 720h
+
+database:
+  host: "localhost"
+  port: "5432"
+  user: "root"
+  password: "root"
+  database: "sakucita"
+  max_open_conns: 20
+  min_idle_conns: 2
+  max_idle_conns: 5
+  conn_max_lifetime: 15m
+  conn_max_idle_time: 10m
+
+redis:
+  host: "localhost"
+  port: "6379"
+  password: "root"
+
+payment_gateway:
+  xendit_key: xxx
+  xendit_public_key: xxx
+
+
+
+
