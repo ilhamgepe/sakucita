@@ -27,7 +27,13 @@ type service struct {
 	log      zerolog.Logger
 }
 
-func NewService(db *pgxpool.Pool, q *repository.Queries, config config.App, security *security.Security, log zerolog.Logger) domain.AuthService {
+func NewService(
+	db *pgxpool.Pool,
+	q *repository.Queries,
+	config config.App,
+	security *security.Security,
+	log zerolog.Logger,
+) domain.AuthService {
 	return &service{db, q, config, security, log}
 }
 
@@ -101,7 +107,7 @@ func (s *service) LoginLocal(ctx context.Context, req domain.LoginRequest) (*dom
 	hash := sha256.Sum256([]byte(fmt.Sprintf("%s:%v", userResponse.ID.String(), req.ClientInfo)))
 	deviceID := fmt.Sprintf("%x", hash)
 	// create session
-	_, err = s.q.CreateSession(ctx, repository.CreateSessionParams{
+	_, err = s.q.UpsertSession(ctx, repository.UpsertSessionParams{
 		UserID:   userResponse.ID,
 		DeviceID: deviceID,
 		RefreshTokenID: pgtype.UUID{

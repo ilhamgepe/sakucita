@@ -13,49 +13,6 @@ import (
 	"sakucita/internal/domain"
 )
 
-const createSession = `-- name: CreateSession :one
-INSERT INTO sessions (
-  user_id,
-  device_id,
-  refresh_token_id,
-  expires_at,
-  meta
-) VALUES (
-  $1, $2, $3, $4, $5
-) RETURNING id, user_id, device_id, refresh_token_id, expires_at, revoked, meta, created_at, last_used_at
-`
-
-type CreateSessionParams struct {
-	UserID         uuid.UUID
-	DeviceID       string
-	RefreshTokenID pgtype.UUID
-	ExpiresAt      pgtype.Timestamptz
-	Meta           domain.JSONB
-}
-
-func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error) {
-	row := q.db.QueryRow(ctx, createSession,
-		arg.UserID,
-		arg.DeviceID,
-		arg.RefreshTokenID,
-		arg.ExpiresAt,
-		arg.Meta,
-	)
-	var i Session
-	err := row.Scan(
-		&i.ID,
-		&i.UserID,
-		&i.DeviceID,
-		&i.RefreshTokenID,
-		&i.ExpiresAt,
-		&i.Revoked,
-		&i.Meta,
-		&i.CreatedAt,
-		&i.LastUsedAt,
-	)
-	return i, err
-}
-
 const revokeAllSessionsByUserID = `-- name: RevokeAllSessionsByUserID :exec
 UPDATE sessions SET revoked = TRUE WHERE user_id = $1
 `
@@ -77,4 +34,55 @@ type RevokeSessionByIDParams struct {
 func (q *Queries) RevokeSessionByID(ctx context.Context, arg RevokeSessionByIDParams) error {
 	_, err := q.db.Exec(ctx, revokeSessionByID, arg.ID, arg.UserID)
 	return err
+}
+
+const upsertSession = `-- name: UpsertSession :one
+INSERT INTO sessions (
+  user_id,
+  device_id,
+  refresh_token_id,
+  expires_at,
+  meta
+) VALUES (
+  $1, $2, $3, $4, $5
+) 
+ON CONFLICT (user_id, device_id)
+DO UPDATE SET
+  refresh_token_id = EXCLUDED.refresh_token_id,
+  expires_at = EXCLUDED.expires_at,
+  meta = EXCLUDED.meta,
+  last_used_at = now(),
+  revoked = FALSE
+RETURNING id, user_id, device_id, refresh_token_id, expires_at, revoked, meta, created_at, last_used_at
+`
+
+type UpsertSessionParams struct {
+	UserID         uuid.UUID
+	DeviceID       string
+	RefreshTokenID pgtype.UUID
+	ExpiresAt      pgtype.Timestamptz
+	Meta           domain.JSONB
+}
+
+func (q *Queries) UpsertSession(ctx context.Context, arg UpsertSessionParams) (Session, error) {
+	row := q.db.QueryRow(ctx, upsertSession,
+		arg.UserID,
+		arg.DeviceID,
+		arg.RefreshTokenID,
+		arg.ExpiresAt,
+		arg.Meta,
+	)
+	var i Session
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.DeviceID,
+		&i.RefreshTokenID,
+		&i.ExpiresAt,
+		&i.Revoked,
+		&i.Meta,
+		&i.CreatedAt,
+		&i.LastUsedAt,
+	)
+	return i, err
 }
