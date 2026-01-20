@@ -10,6 +10,7 @@ type AuthService interface {
 	RegisterLocal(ctx context.Context, req RegisterRequest) error
 	LoginLocal(ctx context.Context, req LoginRequest) (*LoginResponse, error)
 	Me(ctx context.Context, userID uuid.UUID) (*UserWithRoles, error)
+	RefreshToken(ctx context.Context, req RefreshRequest) (*RefreshResponse, error)
 }
 
 type RegisterRequest struct {
@@ -26,14 +27,24 @@ type LoginRequest struct {
 	ClientInfo ClientInfo
 }
 
-type ClientInfo struct {
-	IP         string `json:"ip"`
-	UserAgent  string `json:"user_agent"`
-	DeviceName string `json:"device_name"`
-}
-
 type LoginResponse struct {
 	User         UserWithRoles `json:"user"`
 	AccessToken  string        `json:"access_token"`
 	RefreshToken string        `json:"refresh_token"`
+}
+
+type RefreshRequest struct {
+	Claims     TokenClaims
+	ClientInfo ClientInfo
+}
+
+type RefreshResponse struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
+type ClientInfo struct {
+	IP         string `json:"ip"`
+	UserAgent  string `json:"user_agent"`
+	DeviceName string `json:"device_name"`
 }

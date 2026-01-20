@@ -1,8 +1,6 @@
 package http
 
 import (
-	"errors"
-
 	"sakucita/internal/domain"
 	"sakucita/internal/server/middleware"
 	"sakucita/internal/shared/utils"
@@ -35,7 +33,34 @@ func (h *Handler) Routes(r fiber.Router) {
 	r.Post("/auth/register", h.registerLocal)
 	r.Post("/auth/login", h.loginLocal)
 
-	r.Get("/auth/me", h.mw.WithAuth, h.me)
+	r.Route("", func(router fiber.Router) {
+		router.Use(h.mw.WithAuth)
+		router.Get("/auth/me", h.me)
+		router.Get("/auth/refresh", h.refreshToken)
+	})
+}
+
+func (h *Handler) refreshToken(c *fiber.Ctx) error {
+	claims, ok := c.Locals(domain.CtxUserIDKey).(domain.TokenClaims)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(domain.ErrorResponse{
+			Message: domain.ErrUnauthorized.Error(),
+			Errors:  "invalid token claims",
+		})
+	}
+
+	res, err := h.authService.RefreshToken(c.Context(), domain.RefreshRequest{
+		Claims:     claims,
+		ClientInfo: utils.ExtractClientInfo(c),
+	})
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(domain.Response{
+		Message: "success",
+		Data:    res,
+	})
 }
 
 func (h *Handler) me(c *fiber.Ctx) error {
@@ -90,15 +115,6 @@ func (h *Handler) registerLocal(c *fiber.Ctx) error {
 	}
 
 	if err := h.authService.RegisterLocal(c.Context(), req); err != nil {
-		if errors.Is(err, domain.ErrEmailAlreadyExists) ||
-			errors.Is(err, domain.ErrPhoneAlreadyExists) ||
-			errors.Is(err, domain.ErrNicknameAlreadyExists) {
-
-			return c.Status(fiber.StatusConflict).JSON(domain.ErrorResponse{
-				Message: "register failed",
-				Errors:  err.Error(),
-			})
-		}
 		return err
 	}
 

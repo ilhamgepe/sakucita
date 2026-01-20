@@ -2,9 +2,7 @@ package service
 
 import (
 	"context"
-	"crypto/sha256"
 	"encoding/json"
-	"fmt"
 
 	"sakucita/internal/database/repository"
 	"sakucita/internal/domain"
@@ -12,6 +10,7 @@ import (
 	"sakucita/internal/shared/utils"
 	"sakucita/pkg/config"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -37,18 +36,80 @@ func NewService(
 	return &service{db, q, config, security, log}
 }
 
+func (s *service) RefreshToken(ctx context.Context, req domain.RefreshRequest) (*domain.RefreshResponse, error) {
+	// get session
+	session, err := s.q.GetActiveSessionByTokenID(ctx, utils.SringToPgTypeUUID(req.Claims.RegisteredClaims.ID))
+	if err != nil {
+		if utils.IsNotFoundError(err) {
+			return nil, domain.NewAppError(fiber.StatusUnauthorized, domain.ErrMsgSessionNotFound, domain.ErrUnauthorized)
+		}
+		s.log.Err(err).Msg("failed to get session for refresh token")
+		return nil, domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
+	}
+
+	// cek kalo device nya beda dari hash device_id maka error
+	deviceID := utils.GenerateDeviceID(req.Claims.UserID, req.ClientInfo)
+	if deviceID != session.DeviceID {
+		s.log.Warn().Msgf("device id missmatch: %v != %v", deviceID, session.DeviceID)
+		return nil, domain.NewAppError(fiber.StatusUnauthorized, domain.ErrMsgDeviceIdMissmatch, domain.ErrUnauthorized)
+	}
+
+	// generate token
+	accessTokenID := uuid.New()
+	accessToken, _, err := s.security.GenerateToken(req.Claims.UserID, accessTokenID, req.Claims.Role, s.config.JWT.AccessTokenExpiresIn)
+	if err != nil {
+		s.log.Error().Err(err).Msg("failed to generate access token")
+		return nil, domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
+	}
+	// generate refresh token
+	refreshTokenID := uuid.New()
+	refreshToken, rtClaims, err := s.security.GenerateToken(req.Claims.UserID, refreshTokenID, req.Claims.Role, s.config.JWT.RefreshTokenExpiresIn)
+	if err != nil {
+		s.log.Error().Err(err).Msg("failed to generate refresh token")
+		return nil, domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
+	}
+
+	// create session
+	_, err = s.q.UpsertSession(ctx, repository.UpsertSessionParams{
+		UserID:   req.Claims.UserID,
+		DeviceID: deviceID,
+		RefreshTokenID: pgtype.UUID{
+			Bytes: refreshTokenID,
+			Valid: true,
+		},
+		ExpiresAt: pgtype.Timestamptz{
+			Time:  rtClaims.ExpiresAt.Time,
+			Valid: true,
+		},
+		Meta: map[string]any{
+			"ip":          req.ClientInfo.IP,
+			"user_agent":  req.ClientInfo.UserAgent,
+			"device_name": req.ClientInfo.DeviceName,
+		},
+	})
+	if err != nil {
+		s.log.Error().Err(err).Msg("failed to create session")
+		return nil, domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
+	}
+
+	return &domain.RefreshResponse{
+		AccessToken:  accessToken,
+		RefreshToken: refreshToken,
+	}, nil
+}
+
 func (s *service) Me(ctx context.Context, userID uuid.UUID) (*domain.UserWithRoles, error) {
 	userWithRolesRow, err := s.q.GetUserByIDWithRoles(ctx, userID)
 	if err != nil {
 		s.log.Warn().Err(err).Msg("failed to get user with roles")
-		return nil, domain.ErrUserNotFound
+		return nil, domain.NewAppError(fiber.StatusNotFound, "user not found", domain.ErrNotfound)
 	}
 	// unmarshar role
 	var roles []domain.Role
 	if len(userWithRolesRow.Roles) > 0 {
 		if err := json.Unmarshal(userWithRolesRow.Roles, &roles); err != nil {
 			s.log.Error().Err(err).Msg("failed to unmarshal roles array")
-			return nil, domain.ErrInternalServerError
+			return nil, domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
 		}
 	}
 
@@ -78,17 +139,17 @@ func (s *service) LoginLocal(ctx context.Context, req domain.LoginRequest) (*dom
 	// get user identity
 	authIdentity, err := s.q.GetAuthIdentityByEmail(ctx, req.Email)
 	if err != nil {
-		return nil, domain.ErrUserNotFound
+		return nil, domain.NewAppError(fiber.StatusNotFound, domain.ErrMsgUserNotFound, domain.ErrNotfound)
 	}
 	// compare password
 	if !utils.CheckPassword(req.Password, authIdentity.PasswordHash.String) {
-		return nil, domain.ErrInvalidCredentials
+		return nil, domain.NewAppError(fiber.StatusUnauthorized, domain.ErrMsgInvalidCredentials, domain.ErrUnauthorized)
 	}
 	// get user
 	userWithRolesRow, err := s.q.GetUserByIDWithRoles(ctx, authIdentity.UserID)
 	if err != nil {
 		s.log.Warn().Err(err).Msg("failed to get user but auth identity found")
-		return nil, domain.ErrUserNotFound
+		return nil, domain.NewAppError(fiber.StatusNotFound, domain.ErrMsgUserNotFound, domain.ErrNotfound)
 	}
 
 	// unmarshar role
@@ -96,7 +157,7 @@ func (s *service) LoginLocal(ctx context.Context, req domain.LoginRequest) (*dom
 	if len(userWithRolesRow.Roles) > 0 {
 		if err := json.Unmarshal(userWithRolesRow.Roles, &roles); err != nil {
 			s.log.Error().Err(err).Msg("failed to unmarshal roles array")
-			return nil, domain.ErrInternalServerError
+			return nil, domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
 		}
 	}
 
@@ -123,7 +184,7 @@ func (s *service) LoginLocal(ctx context.Context, req domain.LoginRequest) (*dom
 	accessToken, _, err := s.security.GenerateToken(userResponse.ID, accessTokenID, roles, s.config.JWT.AccessTokenExpiresIn)
 	if err != nil {
 		s.log.Error().Err(err).Msg("failed to generate access token")
-		return nil, domain.ErrInternalServerError
+		return nil, domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
 	}
 
 	// generate refresh token
@@ -131,17 +192,21 @@ func (s *service) LoginLocal(ctx context.Context, req domain.LoginRequest) (*dom
 	refreshToken, rtClaims, err := s.security.GenerateToken(userResponse.ID, refreshTokenID, roles, s.config.JWT.RefreshTokenExpiresIn)
 	if err != nil {
 		s.log.Error().Err(err).Msg("failed to generate refresh token")
-		return nil, domain.ErrInternalServerError
+		return nil, domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
 	}
 
 	// delete all session if user activate single session
 	if userResponse.SingleSession {
-		s.q.RevokeAllSessionsByUserID(ctx, userResponse.ID)
+		err := s.q.RevokeAllSessionsByUserID(ctx, userResponse.ID)
+		if err != nil {
+			s.log.Error().Err(err).Msg("failed to revoke all sessions")
+			return nil, domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
+		}
 	}
 
 	// device id
-	hash := sha256.Sum256([]byte(fmt.Sprintf("%s:%v", userResponse.ID.String(), req.ClientInfo)))
-	deviceID := fmt.Sprintf("%x", hash)
+	deviceID := utils.GenerateDeviceID(userResponse.ID, req.ClientInfo)
+
 	// create session
 	_, err = s.q.UpsertSession(ctx, repository.UpsertSessionParams{
 		UserID:   userResponse.ID,
@@ -162,7 +227,7 @@ func (s *service) LoginLocal(ctx context.Context, req domain.LoginRequest) (*dom
 	})
 	if err != nil {
 		s.log.Error().Err(err).Msg("failed to create session")
-		return nil, domain.ErrInternalServerError
+		return nil, domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
 	}
 
 	return &domain.LoginResponse{
@@ -187,7 +252,7 @@ func (s *service) RegisterLocal(ctx context.Context, req domain.RegisterRequest)
 	// create user
 	user, err := qtx.CreateUser(ctx, repository.CreateUserParams{
 		Email:    req.Email,
-		Phone:    utils.StringToPgType(req.Phone),
+		Phone:    utils.StringToPgTypeText(req.Phone),
 		Name:     req.Name,
 		Nickname: req.Nickname,
 	})
@@ -195,15 +260,15 @@ func (s *service) RegisterLocal(ctx context.Context, req domain.RegisterRequest)
 		if utils.IsDuplicateUniqueViolation(err) {
 			switch utils.PgConstraint(err) {
 			case "users_email_key":
-				return domain.ErrEmailAlreadyExists
+				return domain.NewAppError(fiber.StatusConflict, domain.ErrMsgEmailAlreadyExists, domain.ErrConflict)
 			case "users_phone_key":
-				return domain.ErrPhoneAlreadyExists
+				return domain.NewAppError(fiber.StatusConflict, domain.ErrMsgPhoneAlreadyExists, domain.ErrConflict)
 			case "users_nickname_key":
-				return domain.ErrNicknameAlreadyExists
+				return domain.NewAppError(fiber.StatusConflict, domain.ErrMsgNicknameAlreadyExists, domain.ErrConflict)
 			}
 		}
 		s.log.Err(err).Msg("failed to create user")
-		return domain.ErrInternalServerError
+		return domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
 	}
 
 	// create user role
@@ -213,14 +278,14 @@ func (s *service) RegisterLocal(ctx context.Context, req domain.RegisterRequest)
 	})
 	if err != nil {
 		s.log.Err(err).Msg("failed to create user role")
-		return domain.ErrInternalServerError
+		return domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
 	}
 
 	// hashing password
 	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
 		s.log.Err(err).Msg("failed to hash password")
-		return domain.ErrInternalServerError
+		return domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
 	}
 
 	// create auth identity
@@ -228,17 +293,17 @@ func (s *service) RegisterLocal(ctx context.Context, req domain.RegisterRequest)
 		UserID:       user.ID,
 		Provider:     domain.PROVIDERLOCAL,
 		ProviderID:   req.Email,
-		PasswordHash: utils.StringToPgType(hashedPassword),
+		PasswordHash: utils.StringToPgTypeText(hashedPassword),
 	})
 	if err != nil {
 		s.log.Err(err).Msg("failed to create auth identity")
-		return domain.ErrInternalServerError
+		return domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
 	}
 
 	// success
 	if err := tx.Commit(ctx); err != nil {
 		s.log.Err(err).Msg("failed to commit transaction")
-		return domain.ErrInternalServerError
+		return domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
 	}
 	return nil
 }

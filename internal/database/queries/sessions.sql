@@ -1,3 +1,6 @@
+-- name: GetActiveSessionByTokenID :one
+SELECT * FROM sessions WHERE refresh_token_id = $1 AND revoked = FALSE;
+
 -- name: RevokeAllSessionsByUserID :exec
 UPDATE sessions SET revoked = TRUE WHERE user_id = $1;
 

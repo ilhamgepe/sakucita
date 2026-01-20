@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -31,6 +32,10 @@ func IsPgErrCode(err error, code string) bool {
 		return pgErr.Code == code
 	}
 	return false
+}
+
+func IsNotFoundError(err error) bool {
+	return errors.Is(err, pgx.ErrNoRows)
 }
 
 // IsUniqueViolation checks if the error is a unique constraint violation.

@@ -8,12 +8,14 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
 	CreateAuthIdentityLocal(ctx context.Context, arg CreateAuthIdentityLocalParams) error
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateUserRole(ctx context.Context, arg CreateUserRoleParams) error
+	GetActiveSessionByTokenID(ctx context.Context, refreshTokenID pgtype.UUID) (Session, error)
 	GetAuthIdentityByEmail(ctx context.Context, providerID string) (AuthIdentity, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)

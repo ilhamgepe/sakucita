@@ -13,6 +13,27 @@ import (
 	"sakucita/internal/domain"
 )
 
+const getActiveSessionByTokenID = `-- name: GetActiveSessionByTokenID :one
+SELECT id, user_id, device_id, refresh_token_id, expires_at, revoked, meta, created_at, last_used_at FROM sessions WHERE refresh_token_id = $1 AND revoked = FALSE
+`
+
+func (q *Queries) GetActiveSessionByTokenID(ctx context.Context, refreshTokenID pgtype.UUID) (Session, error) {
+	row := q.db.QueryRow(ctx, getActiveSessionByTokenID, refreshTokenID)
+	var i Session
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.DeviceID,
+		&i.RefreshTokenID,
+		&i.ExpiresAt,
+		&i.Revoked,
+		&i.Meta,
+		&i.CreatedAt,
+		&i.LastUsedAt,
+	)
+	return i, err
+}
+
 const revokeAllSessionsByUserID = `-- name: RevokeAllSessionsByUserID :exec
 UPDATE sessions SET revoked = TRUE WHERE user_id = $1
 `
