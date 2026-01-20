@@ -8,6 +8,7 @@ import (
 	"sakucita/internal/database/repository"
 	"sakucita/internal/domain"
 	"sakucita/internal/server"
+	"sakucita/internal/server/middleware"
 	"sakucita/internal/server/security"
 	"sakucita/pkg/config"
 	"sakucita/pkg/logger"
@@ -26,11 +27,18 @@ func main() {
 
 	security := securityProvider(cfg, log, databases.redis)
 
+	middleware := middlewareProvider(log, security)
+
 	services := serviceProvider(cfg, log, databases, queries, security)
 
-	serverHttp := ServerHTTPProvider(cfg, log, services)
+	serverHttp := ServerHTTPProvider(cfg, log, services, middleware)
 
 	serverHttp.Start()
+}
+
+// middleware provider
+func middlewareProvider(log zerolog.Logger, security *security.Security) *middleware.Middleware {
+	return middleware.NewMiddleware(log, security)
 }
 
 // security provider
@@ -89,8 +97,8 @@ func loggerProvider(cfg config.App) zerolog.Logger {
 }
 
 // server provider
-func ServerHTTPProvider(cfg config.App, log zerolog.Logger, services *services) *server.Server {
+func ServerHTTPProvider(cfg config.App, log zerolog.Logger, services *services, middleware *middleware.Middleware) *server.Server {
 	return server.NewServer(
-		cfg, log, services.authService,
+		cfg, log, services.authService, middleware,
 	)
 }

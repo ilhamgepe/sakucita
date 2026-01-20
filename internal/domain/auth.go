@@ -2,11 +2,14 @@ package domain
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
 type AuthService interface {
 	RegisterLocal(ctx context.Context, req RegisterRequest) error
 	LoginLocal(ctx context.Context, req LoginRequest) (*LoginResponse, error)
+	Me(ctx context.Context, userID uuid.UUID) (*UserWithRoles, error)
 }
 
 type RegisterRequest struct {

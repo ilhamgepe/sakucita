@@ -23,6 +23,37 @@ func (s *Security) GenerateToken(userID uuid.UUID, id uuid.UUID, role []domain.R
 	return tokenString, &claims, nil
 }
 
+func (s *Security) VerifyToken(tokenString string) (domain.TokenClaims, error) {
+	var claims domain.TokenClaims
+	token, err := jwt.ParseWithClaims(tokenString, &claims, func(t *jwt.Token) (any, error) {
+		// validasi algoritma, wajib euy nanti bisa ke bypass
+		if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+		}
+
+		// ambil kid
+		kid, ok := t.Header["kid"].(string)
+		if !ok {
+			return nil, fmt.Errorf("missing kid in header")
+		}
+
+		// cari kid yang di pake di tokenya
+		key, ok := s.rsaKeys[kid]
+		if !ok {
+			return nil, fmt.Errorf("unknown kid: %s", kid)
+		}
+
+		return key.public, nil
+	})
+
+	if err != nil || !token.Valid {
+		s.log.Error().Err(err).Msg("failed to parse and validate token")
+		return domain.TokenClaims{}, domain.ErrUnauthorized
+	}
+
+	return claims, nil
+}
+
 func (s *Security) LoadRSAKeys(path string) error {
 	s.rsaKeys = make(map[string]*RSAKeys)
 
@@ -69,37 +100,6 @@ func (s *Security) LoadRSAKeys(path string) error {
 		s.log.Info().Msgf("kid: %s", id)
 	}
 	return nil
-}
-
-func (s *Security) VerifyToken(tokenString string) (domain.TokenClaims, error) {
-	var claims domain.TokenClaims
-	token, err := jwt.ParseWithClaims(tokenString, &claims, func(t *jwt.Token) (any, error) {
-		// validasi algoritma, wajib euy nanti bisa ke bypass
-		if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
-		}
-
-		// ambil kid
-		kid, ok := t.Header["kid"].(string)
-		if !ok {
-			return nil, fmt.Errorf("missing kid in header")
-		}
-
-		// cari kid yang di pake di tokenya
-		key, ok := s.rsaKeys[kid]
-		if !ok {
-			return nil, fmt.Errorf("unknown kid: %s", kid)
-		}
-
-		return key.public, nil
-	})
-
-	if err != nil || !token.Valid {
-		s.log.Error().Err(err).Msg("failed to parse and validate token")
-		return domain.TokenClaims{}, domain.ErrUnauthorized
-	}
-
-	return claims, nil
 }
 
 // helper function

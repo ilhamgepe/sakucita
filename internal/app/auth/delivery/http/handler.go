@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"sakucita/internal/domain"
+	"sakucita/internal/server/middleware"
 	"sakucita/internal/shared/utils"
 	"sakucita/pkg/config"
 
@@ -17,20 +18,44 @@ type Handler struct {
 	log         zerolog.Logger
 	validator   *validator.Validate
 	authService domain.AuthService
+	mw          *middleware.Middleware
 }
 
-func NewHandler(config config.App, log zerolog.Logger, validator *validator.Validate, authService domain.AuthService) *Handler {
+func NewHandler(config config.App, log zerolog.Logger, validator *validator.Validate, authService domain.AuthService, mw *middleware.Middleware) *Handler {
 	return &Handler{
 		config,
 		log,
 		validator,
 		authService,
+		mw,
 	}
 }
 
 func (h *Handler) Routes(r fiber.Router) {
 	r.Post("/auth/register", h.registerLocal)
 	r.Post("/auth/login", h.loginLocal)
+
+	r.Get("/auth/me", h.mw.WithAuth, h.me)
+}
+
+func (h *Handler) me(c *fiber.Ctx) error {
+	claims, ok := c.Locals(domain.CtxUserIDKey).(domain.TokenClaims)
+	if !ok {
+		return c.Status(fiber.StatusUnauthorized).JSON(domain.ErrorResponse{
+			Message: domain.ErrUnauthorized.Error(),
+			Errors:  "invalid token claims",
+		})
+	}
+
+	user, err := h.authService.Me(c.Context(), claims.UserID)
+	if err != nil {
+		return err
+	}
+
+	return c.JSON(domain.Response{
+		Message: "success",
+		Data:    user,
+	})
 }
 
 func (h *Handler) loginLocal(c *fiber.Ctx) error {

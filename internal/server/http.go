@@ -11,6 +11,7 @@ import (
 
 	authHandlerHTTP "sakucita/internal/app/auth/delivery/http"
 	"sakucita/internal/domain"
+	"sakucita/internal/server/middleware"
 	"sakucita/pkg/config"
 
 	"github.com/go-playground/validator/v10"
@@ -36,6 +37,7 @@ func NewServer(
 	config config.App,
 	log zerolog.Logger,
 	authService domain.AuthService,
+	middleware *middleware.Middleware,
 ) *Server {
 	// setup validator
 	validator := validator.New()
@@ -58,7 +60,7 @@ func NewServer(
 	})
 
 	// setup handler
-	authHandler := authHandlerHTTP.NewHandler(config, log, validator, authService)
+	authHandler := authHandlerHTTP.NewHandler(config, log, validator, authService, middleware)
 
 	return &Server{
 		app:       app,

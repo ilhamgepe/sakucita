@@ -37,6 +37,42 @@ func NewService(
 	return &service{db, q, config, security, log}
 }
 
+func (s *service) Me(ctx context.Context, userID uuid.UUID) (*domain.UserWithRoles, error) {
+	userWithRolesRow, err := s.q.GetUserByIDWithRoles(ctx, userID)
+	if err != nil {
+		s.log.Warn().Err(err).Msg("failed to get user with roles")
+		return nil, domain.ErrUserNotFound
+	}
+	// unmarshar role
+	var roles []domain.Role
+	if len(userWithRolesRow.Roles) > 0 {
+		if err := json.Unmarshal(userWithRolesRow.Roles, &roles); err != nil {
+			s.log.Error().Err(err).Msg("failed to unmarshal roles array")
+			return nil, domain.ErrInternalServerError
+		}
+	}
+
+	userResponse := &domain.UserWithRoles{
+		User: domain.User{
+			ID:            userWithRolesRow.ID,
+			Email:         userWithRolesRow.Email,
+			EmailVerified: userWithRolesRow.EmailVerified,
+			Phone:         userWithRolesRow.Phone,
+			Name:          userWithRolesRow.Name,
+			Nickname:      userWithRolesRow.Nickname,
+			ImageUrl:      userWithRolesRow.ImageUrl,
+			SingleSession: userWithRolesRow.SingleSession,
+			Meta:          userWithRolesRow.Meta,
+			CreatedAt:     userWithRolesRow.CreatedAt,
+			UpdatedAt:     userWithRolesRow.UpdatedAt,
+			DeletedAt:     userWithRolesRow.DeletedAt,
+		},
+		Roles: roles,
+	}
+
+	return userResponse, nil
+}
+
 func (s *service) LoginLocal(ctx context.Context, req domain.LoginRequest) (*domain.LoginResponse, error) {
 	// check ban user attemp
 	// get user identity

@@ -81,7 +81,7 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 }
 
 const getUserByID = `-- name: GetUserByID :one
-SELECT id, email, email_verified, phone, name, nickname, image_url, single_session, meta, created_at, updated_at, deleted_at FROM users WHERE id = $1
+SELECT id, email, email_verified, phone, name, nickname, image_url, single_session, meta, created_at, updated_at, deleted_at FROM users WHERE id = $1 AND deleted_at IS NULL
 `
 
 func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
@@ -118,7 +118,7 @@ SELECT
 FROM users u
 LEFT JOIN user_roles ur ON u.id = ur.user_id
 LEFT JOIN roles r ON ur.role_id = r.id
-WHERE u.id = $1
+WHERE u.id = $1 AND u.deleted_at IS NULL
 GROUP BY u.id
 `
 
