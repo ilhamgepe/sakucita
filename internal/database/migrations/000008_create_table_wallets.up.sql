@@ -21,5 +21,3 @@ CREATE TABLE wallets (
   UNIQUE (user_id, type),
   UNIQUE (user_id, slug)
 );
-
-CREATE INDEX idx_wallets_user_id ON wallets (user_id);
