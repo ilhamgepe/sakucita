@@ -12,6 +12,8 @@ type App struct {
 	JWT      JWT      `mapstructure:"jwt"`
 	Database Database `mapstructure:"database"`
 	Redis    Redis    `mapstructure:"redis"`
+	Midtrans Midtrans `mapstructure:"midtrans"`
+	Apis     Apis     `mapstructure:"apis"`
 }
 
 type Server struct {
@@ -46,6 +48,16 @@ type Redis struct {
 	Host     string `mapstructure:"host"`
 	Port     string `mapstructure:"port"`
 	Password string `mapstructure:"password"`
+}
+
+type Midtrans struct {
+	ServerKey string `mapstructure:"server_key"`
+	ClientKey string `mapstructure:"client_key"`
+	BaseURL   string `mapstructure:"base_url"`
+}
+
+type Apis struct {
+	YoutubeApiV3Key string `mapstructure:"youtube_api_v3_key"`
 }
 
 func New(path string) (App, error) {

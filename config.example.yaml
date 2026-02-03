@@ -26,9 +26,13 @@ redis:
   port: "6379"
   password: "root"
 
-payment_gateway:
-  xendit_key: xxx
-  xendit_public_key: xxx
+midtrans:
+  server_key: xxx
+  client_key: xxx
+  base_url: https://api.sandbox.midtrans.com/v2
+
+apis:
+  youtube_api_v3_key: xxx
 
 
 
