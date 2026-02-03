@@ -16,9 +16,8 @@ import (
 	"sakucita/pkg/config"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/gofiber/contrib/fiberzerolog"
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/recover"
+	"github.com/gofiber/fiber/v3"
+	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/rs/zerolog"
 )
 
@@ -105,9 +104,6 @@ func (s *Server) Start() {
 }
 
 func (s *Server) setupGlobalMiddlewares() {
-	s.app.Use(fiberzerolog.New(fiberzerolog.Config{
-		Logger: &s.log,
-	}))
 	s.app.Use(recover.New(recover.ConfigDefault))
 }
 

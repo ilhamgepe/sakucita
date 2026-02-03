@@ -6,10 +6,10 @@ import (
 
 	"sakucita/internal/domain"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
-func ExtractClientInfo(c *fiber.Ctx) domain.ClientInfo {
+func ExtractClientInfo(c fiber.Ctx) domain.ClientInfo {
 	ip := c.IP()
 	userAgent := c.Get("User-Agent")
 	deviceName := parseDeviceName(userAgent)

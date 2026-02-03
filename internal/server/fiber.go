@@ -7,10 +7,10 @@ import (
 	"sakucita/internal/shared/utils"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
-func fiberErrorHandler(c *fiber.Ctx, err error) error {
+func fiberErrorHandler(c fiber.Ctx, err error) error {
 	status := fiber.StatusInternalServerError
 	message := any("internal server error")
 

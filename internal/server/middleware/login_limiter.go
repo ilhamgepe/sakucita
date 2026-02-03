@@ -5,14 +5,14 @@ import (
 
 	"sakucita/internal/domain"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
-func (m *Middleware) LoginLimiter(c *fiber.Ctx) error {
+func (m *Middleware) LoginLimiter(c fiber.Ctx) error {
 	var req struct {
 		Email string `json:"email" form:"email"`
 	}
-	if err := c.BodyParser(&req); err != nil {
+	if err := c.Bind().Body(&req); err != nil {
 		return fiber.NewError(
 			fiber.StatusBadRequest,
 			"invalid request body",
@@ -25,7 +25,7 @@ func (m *Middleware) LoginLimiter(c *fiber.Ctx) error {
 	}
 
 	// 2. Cek apakah email sedang diban
-	ttl, err := m.authService.CheckLoginBan(c.Context(), req.Email)
+	ttl, err := m.authService.CheckLoginBan(c.RequestCtx(), req.Email)
 	if err != nil {
 		// Redis error → infra error
 		return fiber.NewError(
@@ -44,3 +44,5 @@ func (m *Middleware) LoginLimiter(c *fiber.Ctx) error {
 
 	return c.Next()
 }
+
+// fiber:context-methods migrated

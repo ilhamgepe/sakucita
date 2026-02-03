@@ -7,7 +7,7 @@ import (
 	"sakucita/pkg/config"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rs/zerolog"
 )
 
@@ -40,7 +40,7 @@ func (h *Handler) Routes(r fiber.Router) {
 	})
 }
 
-func (h *Handler) refreshToken(c *fiber.Ctx) error {
+func (h *Handler) refreshToken(c fiber.Ctx) error {
 	claims, ok := c.Locals(domain.CtxUserIDKey).(domain.TokenClaims)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(domain.ErrorResponse{
@@ -49,7 +49,7 @@ func (h *Handler) refreshToken(c *fiber.Ctx) error {
 		})
 	}
 
-	res, err := h.authService.RefreshToken(c.Context(), domain.RefreshRequest{
+	res, err := h.authService.RefreshToken(c.RequestCtx(), domain.RefreshRequest{
 		Claims:     claims,
 		ClientInfo: utils.ExtractClientInfo(c),
 	})
@@ -63,7 +63,7 @@ func (h *Handler) refreshToken(c *fiber.Ctx) error {
 	})
 }
 
-func (h *Handler) me(c *fiber.Ctx) error {
+func (h *Handler) me(c fiber.Ctx) error {
 	claims, ok := c.Locals(domain.CtxUserIDKey).(domain.TokenClaims)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(domain.ErrorResponse{
@@ -72,7 +72,7 @@ func (h *Handler) me(c *fiber.Ctx) error {
 		})
 	}
 
-	user, err := h.authService.Me(c.Context(), claims.UserID)
+	user, err := h.authService.Me(c.RequestCtx(), claims.UserID)
 	if err != nil {
 		return err
 	}
@@ -83,9 +83,9 @@ func (h *Handler) me(c *fiber.Ctx) error {
 	})
 }
 
-func (h *Handler) loginLocal(c *fiber.Ctx) error {
+func (h *Handler) loginLocal(c fiber.Ctx) error {
 	var req domain.LoginRequest
-	if err := c.BodyParser(&req); err != nil {
+	if err := c.Bind().Body(&req); err != nil {
 		return err
 	}
 	if err := h.validator.Struct(req); err != nil {
@@ -94,7 +94,7 @@ func (h *Handler) loginLocal(c *fiber.Ctx) error {
 
 	req.ClientInfo = utils.ExtractClientInfo(c)
 
-	res, err := h.authService.LoginLocal(c.Context(), req)
+	res, err := h.authService.LoginLocal(c.RequestCtx(), req)
 	if err != nil {
 		return err
 	}
@@ -104,9 +104,9 @@ func (h *Handler) loginLocal(c *fiber.Ctx) error {
 	})
 }
 
-func (h *Handler) registerLocal(c *fiber.Ctx) error {
+func (h *Handler) registerLocal(c fiber.Ctx) error {
 	var req domain.RegisterRequest
-	if err := c.BodyParser(&req); err != nil {
+	if err := c.Bind().Body(&req); err != nil {
 		return err
 	}
 
@@ -114,7 +114,7 @@ func (h *Handler) registerLocal(c *fiber.Ctx) error {
 		return err
 	}
 
-	if err := h.authService.RegisterLocal(c.Context(), req); err != nil {
+	if err := h.authService.RegisterLocal(c.RequestCtx(), req); err != nil {
 		return err
 	}
 
@@ -122,3 +122,5 @@ func (h *Handler) registerLocal(c *fiber.Ctx) error {
 		Message: "register success",
 	})
 }
+
+// fiber:context-methods migrated

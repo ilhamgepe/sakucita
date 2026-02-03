@@ -6,7 +6,7 @@ import (
 	"sakucita/pkg/config"
 
 	"github.com/go-playground/validator/v10"
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 	"github.com/rs/zerolog"
 )
 
@@ -37,9 +37,9 @@ func (h *Handler) Routes(r fiber.Router) {
 	})
 }
 
-func (h *Handler) CreateDonation(c *fiber.Ctx) error {
+func (h *Handler) CreateDonation(c fiber.Ctx) error {
 	var req domain.CreateDonationMessageRequest
-	if err := c.BodyParser(&req); err != nil {
+	if err := c.Bind().Body(&req); err != nil {
 		return err
 	}
 

@@ -5,10 +5,10 @@ import (
 
 	"sakucita/internal/domain"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v3"
 )
 
-func (m *Middleware) WithAuth(c *fiber.Ctx) error {
+func (m *Middleware) WithAuth(c fiber.Ctx) error {
 	bearer := c.Get("Authorization")
 	if bearer == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(domain.ErrorResponse{
