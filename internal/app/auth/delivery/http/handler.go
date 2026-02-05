@@ -33,9 +33,9 @@ func (h *Handler) Routes(r fiber.Router) {
 	r.Post("/auth/register", h.registerLocal)
 	r.Post("/auth/login", h.mw.LoginLimiter, h.loginLocal)
 
-	r.Route("", func(router fiber.Router) {
+	r.Route("/auth", func(router fiber.Router) {
 		router.Use(h.mw.WithAuth)
-		router.Get("/auth/me", h.me)
+		router.Get("/me", h.me)
 		router.Get("/auth/refresh", h.refreshToken)
 	})
 }

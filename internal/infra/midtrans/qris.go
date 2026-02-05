@@ -17,10 +17,12 @@ func (c *MidtransClient) CreateQRIS(
 		SetResult(&resp).
 		Post("/v2/charge")
 	if err != nil {
+		c.log.Err(err).Msg("error http request")
 		return nil, err
 	}
 
 	if r.IsError() {
+		c.log.Error().Msgf("midtrans error: %s", r.String())
 		return nil, fmt.Errorf("midtrans error: %s", r.String())
 	}
 

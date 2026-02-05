@@ -30,9 +30,9 @@ type MidtransItemDetail struct {
 
 type MidtransCustomerDetails struct {
 	FirstName string `json:"first_name,omitempty"`
-	LastName  string `json:"last_name,omitempty"`
-	Email     string `json:"email,omitempty"`
-	Phone     string `json:"phone,omitempty"`
+	// LastName  string `json:"last_name,omitempty"`
+	Email string `json:"email,omitempty"`
+	// Phone     string `json:"phone,omitempty"`
 }
 
 type MidtransQRISDetail struct {

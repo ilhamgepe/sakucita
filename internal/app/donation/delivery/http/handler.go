@@ -2,19 +2,22 @@ package http
 
 import (
 	"sakucita/internal/domain"
+	"sakucita/internal/infra/midtrans"
 	"sakucita/internal/server/middleware"
 	"sakucita/pkg/config"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
 
 type Handler struct {
-	config    config.App
-	log       zerolog.Logger
-	validator *validator.Validate
-	mw        *middleware.Middleware
+	config         config.App
+	log            zerolog.Logger
+	validator      *validator.Validate
+	mw             *middleware.Middleware
+	midtransClient *midtrans.MidtransClient
 }
 
 func NewHandler(
@@ -22,12 +25,14 @@ func NewHandler(
 	log zerolog.Logger,
 	validator *validator.Validate,
 	mw *middleware.Middleware,
+	midtransClient *midtrans.MidtransClient,
 ) *Handler {
 	return &Handler{
 		config,
 		log,
 		validator,
 		mw,
+		midtransClient,
 	}
 }
 
@@ -47,8 +52,40 @@ func (h *Handler) CreateDonation(c fiber.Ctx) error {
 		return err
 	}
 
+	res, err := h.midtransClient.CreateQRIS(c.RequestCtx(), midtrans.MidtransQRISRequest{
+		PaymentType: "qris",
+		TransactionDetails: midtrans.MidtransTransactionDetails{
+			OrderID:     uuid.New().String(),
+			GrossAmount: int64(req.Amount) + int64(750),
+		},
+		ItemDetails: []midtrans.MidtransItemDetail{
+			{
+				ID:       uuid.New().String(),
+				Price:    int64(req.Amount),
+				Quantity: 1,
+				Name:     "donation amount",
+			},
+			{
+				ID:       uuid.New().String(),
+				Price:    750,
+				Quantity: 1,
+				Name:     "donation fee",
+			},
+		},
+		CustomerDetails: &midtrans.MidtransCustomerDetails{
+			FirstName: req.PayerName,
+			Email:     *req.Email,
+		},
+		QRIS: midtrans.MidtransQRISDetail{
+			Acquirer: string(midtrans.QRISGopay),
+		},
+	})
+	if err != nil {
+		return err
+	}
+
 	return c.Status(fiber.StatusOK).JSON(domain.Response{
 		Message: "success",
-		Data:    req,
+		Data:    res,
 	})
 }

@@ -5,14 +5,16 @@ import (
 
 	"sakucita/pkg/config"
 
+	"github.com/rs/zerolog"
 	"resty.dev/v3"
 )
 
 type MidtransClient struct {
 	http *resty.Client
+	log  zerolog.Logger
 }
 
-func NewMidtransClient(config config.App) *MidtransClient {
+func NewMidtransClient(config config.App, log zerolog.Logger) *MidtransClient {
 	c := resty.New().
 		SetBaseURL(config.Midtrans.BaseURL).
 		SetBasicAuth(config.Midtrans.ServerKey, "").
@@ -21,5 +23,5 @@ func NewMidtransClient(config config.App) *MidtransClient {
 		SetRetryCount(2).
 		SetRetryWaitTime(1 * time.Second)
 
-	return &MidtransClient{http: c}
+	return &MidtransClient{http: c, log: log}
 }

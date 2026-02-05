@@ -5,6 +5,7 @@ import (
 
 	authService "sakucita/internal/app/auth/service"
 	"sakucita/internal/domain"
+	"sakucita/internal/infra/midtrans"
 	"sakucita/internal/infra/postgres"
 	"sakucita/internal/infra/postgres/repository"
 	redisClient "sakucita/internal/infra/redis"
@@ -22,17 +23,17 @@ import (
 func main() {
 	cfg := configProvider()
 	log := loggerProvider(cfg)
-	databases := databaseProvider(cfg, log)
+	infras := databaseProvider(cfg, log)
 
-	queries := repository.New(databases.postgres)
+	queries := repository.New(infras.postgres)
 
 	security := securityProvider(cfg, log)
 
-	services := serviceProvider(cfg, log, databases, queries, security)
+	services := serviceProvider(cfg, log, infras, queries, security)
 
 	middleware := middlewareProvider(log, security, services)
 
-	serverHttp := ServerHTTPProvider(cfg, log, services, middleware)
+	serverHttp := ServerHTTPProvider(cfg, log, services, middleware, infras)
 
 	serverHttp.Start()
 }
@@ -57,19 +58,20 @@ type services struct {
 	authService domain.AuthService
 }
 
-func serviceProvider(config config.App, log zerolog.Logger, databases *databases, queries *repository.Queries, security *security.Security) *services {
+func serviceProvider(config config.App, log zerolog.Logger, databases *infras, queries *repository.Queries, security *security.Security) *services {
 	return &services{
 		authService: authService.NewService(databases.postgres, databases.redis, queries, config, security, log),
 	}
 }
 
 // database provider
-type databases struct {
-	postgres *pgxpool.Pool
-	redis    *redis.Client
+type infras struct {
+	postgres       *pgxpool.Pool
+	redis          *redis.Client
+	midtransClient *midtrans.MidtransClient
 }
 
-func databaseProvider(cfg config.App, log zerolog.Logger) *databases {
+func databaseProvider(cfg config.App, log zerolog.Logger) *infras {
 	pg, err := postgres.NewDB(context.Background(), cfg, log)
 	if err != nil {
 		panic(err)
@@ -79,9 +81,13 @@ func databaseProvider(cfg config.App, log zerolog.Logger) *databases {
 	if err != nil {
 		panic(err)
 	}
-	return &databases{
-		postgres: pg,
-		redis:    redis,
+
+	midtransClient := midtrans.NewMidtransClient(cfg, log)
+
+	return &infras{
+		postgres:       pg,
+		redis:          redis,
+		midtransClient: midtransClient,
 	}
 }
 
@@ -100,8 +106,8 @@ func loggerProvider(cfg config.App) zerolog.Logger {
 }
 
 // server provider
-func ServerHTTPProvider(cfg config.App, log zerolog.Logger, services *services, middleware *middleware.Middleware) *server.Server {
+func ServerHTTPProvider(cfg config.App, log zerolog.Logger, services *services, middleware *middleware.Middleware, infras *infras) *server.Server {
 	return server.NewServer(
-		cfg, log, services.authService, middleware,
+		cfg, log, services.authService, middleware, infras.midtransClient,
 	)
 }
