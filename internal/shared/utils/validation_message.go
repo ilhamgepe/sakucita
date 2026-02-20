@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -52,7 +53,15 @@ func GenerateMessageValidation(err error) map[string]any {
 			case "eq":
 				messages[fieldName] = fmt.Sprintf("%s must be equal to %s", fieldName, v.Param())
 			case "required_if":
-				messages[fieldName] = fmt.Sprintf("%s is required when %s is %s", fieldName, v.Field(), v.Param())
+				parts := strings.Split(v.Param(), " ")
+				if len(parts) >= 2 {
+					conditionField := parts[0]
+					conditionValue := parts[1]
+					messages[fieldName] = fmt.Sprintf("%s required when %s is %s", fieldName, conditionField, conditionValue)
+				} else {
+					messages[fieldName] = fmt.Sprintf("%s is required", fieldName)
+				}
+				// messages[fieldName] = fmt.Sprintf("%s is required when %s is %s", fieldName, v., v.Param())
 			case "timezone":
 				messages[fieldName] = fmt.Sprintf("%s is not a valid timezone e.g: UTC,+08:00,Asia,Jakarta,America,New_York", fieldName)
 			case "url":

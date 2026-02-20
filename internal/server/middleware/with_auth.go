@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"sakucita/internal/domain"
+	"sakucita/internal/dto"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -11,14 +12,14 @@ import (
 func (m *Middleware) WithAuth(c fiber.Ctx) error {
 	bearer := c.Get("Authorization")
 	if bearer == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(domain.ErrorResponse{
+		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{
 			Message: domain.ErrUnauthorized.Error(),
 			Errors:  "bearer token required",
 		})
 	}
 
 	if !strings.HasPrefix(bearer, "Bearer ") {
-		c.Status(fiber.StatusUnauthorized).JSON(domain.ErrorResponse{
+		c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{
 			Message: domain.ErrUnauthorized.Error(),
 			Errors:  "invalid token format",
 		})
@@ -26,7 +27,7 @@ func (m *Middleware) WithAuth(c fiber.Ctx) error {
 
 	token := bearer[len("Bearer "):]
 	if token == "" {
-		return c.Status(fiber.StatusUnauthorized).JSON(domain.ErrorResponse{
+		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{
 			Message: domain.ErrUnauthorized.Error(),
 			Errors:  "token required",
 		})
@@ -34,7 +35,7 @@ func (m *Middleware) WithAuth(c fiber.Ctx) error {
 
 	claims, err := m.security.VerifyToken(token)
 	if err != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(domain.ErrorResponse{
+		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{
 			Message: domain.ErrUnauthorized.Error(),
 			Errors:  err.Error(),
 		})

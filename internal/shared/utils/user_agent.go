@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"strings"
 
-	"sakucita/internal/domain"
+	"sakucita/internal/server/security"
 
 	"github.com/gofiber/fiber/v3"
 )
 
-func ExtractClientInfo(c fiber.Ctx) domain.ClientInfo {
+func ExtractClientInfo(c fiber.Ctx) security.ClientInfo {
 	ip := c.IP()
 	userAgent := c.Get("User-Agent")
 	deviceName := parseDeviceName(userAgent)
-	return domain.ClientInfo{
+	return security.ClientInfo{
 		IP:         ip,
 		UserAgent:  userAgent,
 		DeviceName: deviceName,

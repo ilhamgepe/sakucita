@@ -24,15 +24,14 @@ INSERT INTO donation_messages (
   media_type,
   media_url,
   media_start_seconds,
-  charged_seconds,
+  max_play_seconds,
   price_per_second,
-  played_at,
   amount,
   currency,
   meta
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15
-) RETURNING id, payee_user_id, payer_user_id, payer_name, email, message, media_type, media_url, media_start_seconds, charged_seconds, price_per_second, amount, currency, status, meta, played_at, created_at
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
+) RETURNING id, payee_user_id, payer_user_id, payer_name, email, message, media_type, media_url, media_start_seconds, max_play_seconds, price_per_second, amount, currency, status, meta, played_at, created_at
 `
 
 type CreateDonationMessageParams struct {
@@ -40,14 +39,13 @@ type CreateDonationMessageParams struct {
 	PayeeUserID       uuid.UUID
 	PayerUserID       pgtype.UUID
 	PayerName         string
-	Email             pgtype.Text
-	Message           pgtype.Text
+	Email             string
+	Message           string
 	MediaType         DonationMediaType
 	MediaUrl          pgtype.Text
-	MediaStartSeconds int32
-	ChargedSeconds    pgtype.Int4
+	MediaStartSeconds pgtype.Int4
+	MaxPlaySeconds    pgtype.Int4
 	PricePerSecond    pgtype.Int8
-	PlayedAt          pgtype.Timestamptz
 	Amount            int64
 	Currency          string
 	Meta              domain.JSONB
@@ -64,9 +62,8 @@ func (q *Queries) CreateDonationMessage(ctx context.Context, arg CreateDonationM
 		arg.MediaType,
 		arg.MediaUrl,
 		arg.MediaStartSeconds,
-		arg.ChargedSeconds,
+		arg.MaxPlaySeconds,
 		arg.PricePerSecond,
-		arg.PlayedAt,
 		arg.Amount,
 		arg.Currency,
 		arg.Meta,
@@ -82,7 +79,7 @@ func (q *Queries) CreateDonationMessage(ctx context.Context, arg CreateDonationM
 		&i.MediaType,
 		&i.MediaUrl,
 		&i.MediaStartSeconds,
-		&i.ChargedSeconds,
+		&i.MaxPlaySeconds,
 		&i.PricePerSecond,
 		&i.Amount,
 		&i.Currency,

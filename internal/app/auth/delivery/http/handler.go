@@ -1,8 +1,11 @@
 package http
 
 import (
+	"sakucita/internal/app/auth/service"
 	"sakucita/internal/domain"
+	"sakucita/internal/dto"
 	"sakucita/internal/server/middleware"
+	"sakucita/internal/server/security"
 	"sakucita/internal/shared/utils"
 	"sakucita/pkg/config"
 
@@ -15,11 +18,11 @@ type Handler struct {
 	config      config.App
 	log         zerolog.Logger
 	validator   *validator.Validate
-	authService domain.AuthService
+	authService service.AuthService
 	mw          *middleware.Middleware
 }
 
-func NewHandler(config config.App, log zerolog.Logger, validator *validator.Validate, authService domain.AuthService, mw *middleware.Middleware) *Handler {
+func NewHandler(config config.App, log zerolog.Logger, validator *validator.Validate, authService service.AuthService, mw *middleware.Middleware) *Handler {
 	return &Handler{
 		config,
 		log,
@@ -41,15 +44,15 @@ func (h *Handler) Routes(r fiber.Router) {
 }
 
 func (h *Handler) refreshToken(c fiber.Ctx) error {
-	claims, ok := c.Locals(domain.CtxUserIDKey).(domain.TokenClaims)
+	claims, ok := c.Locals(domain.CtxUserIDKey).(security.TokenClaims)
 	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(domain.ErrorResponse{
+		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{
 			Message: domain.ErrUnauthorized.Error(),
 			Errors:  "invalid token claims",
 		})
 	}
 
-	res, err := h.authService.RefreshToken(c.RequestCtx(), domain.RefreshRequest{
+	res, err := h.authService.RefreshToken(c.RequestCtx(), service.RefreshCommand{
 		Claims:     claims,
 		ClientInfo: utils.ExtractClientInfo(c),
 	})
@@ -57,16 +60,16 @@ func (h *Handler) refreshToken(c fiber.Ctx) error {
 		return err
 	}
 
-	return c.JSON(domain.Response{
+	return c.JSON(dto.Response{
 		Message: "success",
 		Data:    res,
 	})
 }
 
 func (h *Handler) me(c fiber.Ctx) error {
-	claims, ok := c.Locals(domain.CtxUserIDKey).(domain.TokenClaims)
+	claims, ok := c.Locals(domain.CtxUserIDKey).(security.TokenClaims)
 	if !ok {
-		return c.Status(fiber.StatusUnauthorized).JSON(domain.ErrorResponse{
+		return c.Status(fiber.StatusUnauthorized).JSON(dto.ErrorResponse{
 			Message: domain.ErrUnauthorized.Error(),
 			Errors:  "invalid token claims",
 		})
@@ -77,14 +80,14 @@ func (h *Handler) me(c fiber.Ctx) error {
 		return err
 	}
 
-	return c.JSON(domain.Response{
+	return c.JSON(dto.Response{
 		Message: "success",
 		Data:    user,
 	})
 }
 
 func (h *Handler) loginLocal(c fiber.Ctx) error {
-	var req domain.LoginRequest
+	var req service.LoginLocalCommand
 	if err := c.Bind().Body(&req); err != nil {
 		return err
 	}
@@ -98,14 +101,14 @@ func (h *Handler) loginLocal(c fiber.Ctx) error {
 	if err != nil {
 		return err
 	}
-	return c.JSON(domain.Response{
+	return c.JSON(dto.Response{
 		Message: "success",
 		Data:    res,
 	})
 }
 
 func (h *Handler) registerLocal(c fiber.Ctx) error {
-	var req domain.RegisterRequest
+	var req service.RegisterCommand
 	if err := c.Bind().Body(&req); err != nil {
 		return err
 	}
@@ -118,7 +121,7 @@ func (h *Handler) registerLocal(c fiber.Ctx) error {
 		return err
 	}
 
-	return c.Status(fiber.StatusCreated).JSON(domain.Response{
+	return c.Status(fiber.StatusCreated).JSON(dto.Response{
 		Message: "register success",
 	})
 }

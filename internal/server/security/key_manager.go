@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (s *Security) GenerateToken(userID uuid.UUID, id uuid.UUID, role []domain.Role, exp time.Duration) (string, *domain.TokenClaims, error) {
+func (s *Security) GenerateToken(userID uuid.UUID, id uuid.UUID, role []domain.Role, exp time.Duration) (string, *TokenClaims, error) {
 	claims := s.buildClaims(userID, id, role, exp)
 	tokenString, err := s.signToken(claims)
 	if err != nil {
@@ -23,8 +23,8 @@ func (s *Security) GenerateToken(userID uuid.UUID, id uuid.UUID, role []domain.R
 	return tokenString, &claims, nil
 }
 
-func (s *Security) VerifyToken(tokenString string) (domain.TokenClaims, error) {
-	var claims domain.TokenClaims
+func (s *Security) VerifyToken(tokenString string) (TokenClaims, error) {
+	var claims TokenClaims
 	token, err := jwt.ParseWithClaims(tokenString, &claims, func(t *jwt.Token) (any, error) {
 		// validasi algoritma, wajib euy nanti bisa ke bypass
 		if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {
@@ -48,7 +48,7 @@ func (s *Security) VerifyToken(tokenString string) (domain.TokenClaims, error) {
 
 	if err != nil || !token.Valid {
 		s.log.Error().Err(err).Msg("failed to parse and validate token")
-		return domain.TokenClaims{}, domain.ErrUnauthorized
+		return TokenClaims{}, domain.ErrUnauthorized
 	}
 
 	return claims, nil
@@ -103,10 +103,18 @@ func (s *Security) LoadRSAKeys(path string) error {
 }
 
 // helper function
-func (s *Security) buildClaims(userID uuid.UUID, id uuid.UUID, role []domain.Role, exp time.Duration) domain.TokenClaims {
-	return domain.TokenClaims{
+func (s *Security) buildClaims(userID uuid.UUID, id uuid.UUID, role []domain.Role, exp time.Duration) TokenClaims {
+	// parse role
+	roles := make([]domain.Role, len(role))
+	for i, r := range role {
+		roles[i] = domain.Role{
+			ID:   r.ID,
+			Name: r.Name,
+		}
+	}
+	return TokenClaims{
 		UserID: userID,
-		Role:   role,
+		Role:   roles,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ID:        id.String(),
 			Issuer:    "sakucita",
@@ -116,7 +124,7 @@ func (s *Security) buildClaims(userID uuid.UUID, id uuid.UUID, role []domain.Rol
 	}
 }
 
-func (s *Security) signToken(claims domain.TokenClaims) (string, error) {
+func (s *Security) signToken(claims TokenClaims) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
 	token.Header["kid"] = s.activeKID
 

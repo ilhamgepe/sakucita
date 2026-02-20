@@ -1,23 +1,23 @@
 package http
 
 import (
+	"sakucita/internal/app/donation/service"
 	"sakucita/internal/domain"
-	"sakucita/internal/infra/midtrans"
+	"sakucita/internal/dto"
 	"sakucita/internal/server/middleware"
 	"sakucita/pkg/config"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 )
 
 type Handler struct {
-	config         config.App
-	log            zerolog.Logger
-	validator      *validator.Validate
-	mw             *middleware.Middleware
-	midtransClient *midtrans.MidtransClient
+	config    config.App
+	log       zerolog.Logger
+	validator *validator.Validate
+	mw        *middleware.Middleware
+	service   service.DonationService
 }
 
 func NewHandler(
@@ -25,14 +25,14 @@ func NewHandler(
 	log zerolog.Logger,
 	validator *validator.Validate,
 	mw *middleware.Middleware,
-	midtransClient *midtrans.MidtransClient,
+	service service.DonationService,
 ) *Handler {
 	return &Handler{
 		config,
 		log,
 		validator,
 		mw,
-		midtransClient,
+		service,
 	}
 }
 
@@ -43,48 +43,31 @@ func (h *Handler) Routes(r fiber.Router) {
 }
 
 func (h *Handler) CreateDonation(c fiber.Ctx) error {
-	var req domain.CreateDonationMessageRequest
+	var req dto.CreateDonationRequest
 	if err := c.Bind().Body(&req); err != nil {
 		return err
 	}
 
-	if err := h.validator.Struct(req); err != nil {
-		return err
+	if err := req.Validate(); err != nil {
+		return domain.NewAppError(fiber.StatusBadRequest, "failed", err)
 	}
-
-	res, err := h.midtransClient.CreateQRIS(c.RequestCtx(), midtrans.MidtransQRISRequest{
-		PaymentType: "qris",
-		TransactionDetails: midtrans.MidtransTransactionDetails{
-			OrderID:     uuid.New().String(),
-			GrossAmount: int64(req.Amount) + int64(750),
-		},
-		ItemDetails: []midtrans.MidtransItemDetail{
-			{
-				ID:       uuid.New().String(),
-				Price:    int64(req.Amount),
-				Quantity: 1,
-				Name:     "donation amount",
-			},
-			{
-				ID:       uuid.New().String(),
-				Price:    750,
-				Quantity: 1,
-				Name:     "donation fee",
-			},
-		},
-		CustomerDetails: &midtrans.MidtransCustomerDetails{
-			FirstName: req.PayerName,
-			Email:     *req.Email,
-		},
-		QRIS: midtrans.MidtransQRISDetail{
-			Acquirer: string(midtrans.QRISGopay),
-		},
+	res, err := h.service.CreateDonation(c.RequestCtx(), service.CreateDonationCommand{
+		PayeeUserID:       req.PayeeUserID,
+		PayerUserID:       req.PayerUserID,
+		PayerName:         req.PayerName,
+		Email:             req.Email,
+		Message:           req.Message,
+		MediaType:         req.MediaType,
+		MediaURL:          req.MediaURL,
+		MediaStartSeconds: req.MediaStartSeconds,
+		Amount:            req.Amount,
+		PaymentChannel:    req.PaymentChannel,
 	})
 	if err != nil {
 		return err
 	}
 
-	return c.Status(fiber.StatusOK).JSON(domain.Response{
+	return c.Status(fiber.StatusOK).JSON(dto.Response{
 		Message: "success",
 		Data:    res,
 	})

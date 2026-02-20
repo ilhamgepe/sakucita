@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"sakucita/internal/domain"
 	"sakucita/internal/infra/postgres/repository"
@@ -29,6 +30,18 @@ type service struct {
 	log      zerolog.Logger
 }
 
+type AuthService interface {
+	RegisterLocal(ctx context.Context, req RegisterCommand) error
+	LoginLocal(ctx context.Context, req LoginLocalCommand) (*LoginResult, error)
+	Me(ctx context.Context, userID uuid.UUID) (*domain.UserWithRoles, error)
+	RefreshToken(ctx context.Context, req RefreshCommand) (*RefreshResult, error)
+
+	// auth policy
+	CheckLoginBan(ctx context.Context, id string) (time.Duration, error)
+	OnLoginFail(ctx context.Context, id string) (time.Duration, error)
+	OnLoginSuccess(ctx context.Context, id string) error
+}
+
 func NewService(
 	db *pgxpool.Pool,
 	rdb *redis.Client,
@@ -36,13 +49,13 @@ func NewService(
 	config config.App,
 	security *security.Security,
 	log zerolog.Logger,
-) domain.AuthService {
+) AuthService {
 	return &service{db, rdb, q, config, security, log}
 }
 
-func (s *service) RefreshToken(ctx context.Context, req domain.RefreshRequest) (*domain.RefreshResponse, error) {
+func (s *service) RefreshToken(ctx context.Context, req RefreshCommand) (*RefreshResult, error) {
 	// get session
-	session, err := s.q.GetActiveSessionByTokenID(ctx, utils.SringToPgTypeUUID(req.Claims.RegisteredClaims.ID))
+	session, err := s.q.GetActiveSessionByTokenID(ctx, utils.StringToPgTypeUUID(req.Claims.RegisteredClaims.ID))
 	if err != nil {
 		if utils.IsNotFoundError(err) {
 			return nil, domain.NewAppError(fiber.StatusUnauthorized, domain.ErrMsgSessionNotFound, domain.ErrUnauthorized)
@@ -52,7 +65,7 @@ func (s *service) RefreshToken(ctx context.Context, req domain.RefreshRequest) (
 	}
 
 	// cek kalo device nya beda dari hash device_id maka error
-	deviceID := utils.GenerateDeviceID(req.Claims.UserID, req.ClientInfo)
+	deviceID := security.GenerateDeviceID(req.Claims.UserID, req.ClientInfo)
 	if deviceID != session.DeviceID {
 		s.log.Warn().
 			Str("device_id", deviceID).
@@ -99,7 +112,7 @@ func (s *service) RefreshToken(ctx context.Context, req domain.RefreshRequest) (
 		return nil, domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
 	}
 
-	return &domain.RefreshResponse{
+	return &RefreshResult{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
@@ -141,7 +154,7 @@ func (s *service) Me(ctx context.Context, userID uuid.UUID) (*domain.UserWithRol
 	return userResponse, nil
 }
 
-func (s *service) LoginLocal(ctx context.Context, req domain.LoginRequest) (*domain.LoginResponse, error) {
+func (s *service) LoginLocal(ctx context.Context, req LoginLocalCommand) (*LoginResult, error) {
 	// check ban user attemp, walau udah pake middleware tp best practice nya gini, karna kedepanya mungkin pake grpc
 	ttl, err := s.CheckLoginBan(ctx, req.Email)
 	if err != nil {
@@ -232,10 +245,20 @@ func (s *service) LoginLocal(ctx context.Context, req domain.LoginRequest) (*dom
 	}
 
 	// device id
-	deviceID := utils.GenerateDeviceID(userResponse.ID, req.ClientInfo)
+	deviceID := security.GenerateDeviceID(userResponse.ID, security.ClientInfo{
+		IP:         req.ClientInfo.IP,
+		UserAgent:  req.ClientInfo.UserAgent,
+		DeviceName: req.ClientInfo.DeviceName,
+	})
 
 	// create session
+	sessionID, err := utils.GenerateUUIDV7()
+	if err != nil {
+		s.log.Err(err).Msg("failed to generate uuid v7 for sessionID")
+		return nil, domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
+	}
 	_, err = s.q.UpsertSession(ctx, repository.UpsertSessionParams{
+		ID:       sessionID,
 		UserID:   userResponse.ID,
 		DeviceID: deviceID,
 		RefreshTokenID: pgtype.UUID{
@@ -261,14 +284,14 @@ func (s *service) LoginLocal(ctx context.Context, req domain.LoginRequest) (*dom
 		return nil, domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
 	}
 
-	return &domain.LoginResponse{
+	return &LoginResult{
 		User:         userResponse,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 	}, nil
 }
 
-func (s *service) RegisterLocal(ctx context.Context, req domain.RegisterRequest) error {
+func (s *service) RegisterLocal(ctx context.Context, req RegisterCommand) error {
 	// setup tx
 	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
@@ -283,7 +306,7 @@ func (s *service) RegisterLocal(ctx context.Context, req domain.RegisterRequest)
 	// create user
 	id, err := utils.GenerateUUIDV7()
 	if err != nil {
-		s.log.Err(err).Msg("failed to generate uuid v7")
+		s.log.Err(err).Msg("failed to generate uuid v7 for user")
 		return domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
 	}
 	user, err := qtx.CreateUser(ctx, repository.CreateUserParams{
@@ -326,7 +349,13 @@ func (s *service) RegisterLocal(ctx context.Context, req domain.RegisterRequest)
 	}
 
 	// create auth identity
+	authIdentityID, err := utils.GenerateUUIDV7()
+	if err != nil {
+		s.log.Err(err).Msg("failed to generate uuid v7 for auth identity")
+		return domain.NewAppError(fiber.StatusInternalServerError, domain.ErrMsgInternalServerError, domain.ErrInternalServerError)
+	}
 	err = qtx.CreateAuthIdentityLocal(ctx, repository.CreateAuthIdentityLocalParams{
+		ID:           authIdentityID,
 		UserID:       user.ID,
 		Provider:     domain.PROVIDERLOCAL,
 		ProviderID:   req.Email,

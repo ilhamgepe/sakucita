@@ -1,6 +1,7 @@
 package midtrans
 
 import (
+	"context"
 	"time"
 
 	"sakucita/pkg/config"
@@ -9,12 +10,16 @@ import (
 	"resty.dev/v3"
 )
 
-type MidtransClient struct {
+type midtransClient struct {
 	http *resty.Client
 	log  zerolog.Logger
 }
 
-func NewMidtransClient(config config.App, log zerolog.Logger) *MidtransClient {
+type MidtransClient interface {
+	CreateQRIS(ctx context.Context, amount int64, payerName, payerEmail string) (*MidtransQRISResponse, error)
+}
+
+func NewMidtransClient(config config.App, log zerolog.Logger) MidtransClient {
 	c := resty.New().
 		SetBaseURL(config.Midtrans.BaseURL).
 		SetBasicAuth(config.Midtrans.ServerKey, "").
@@ -23,5 +28,5 @@ func NewMidtransClient(config config.App, log zerolog.Logger) *MidtransClient {
 		SetRetryCount(2).
 		SetRetryWaitTime(1 * time.Second)
 
-	return &MidtransClient{http: c, log: log}
+	return &midtransClient{http: c, log: log}
 }

@@ -1,0 +1,24 @@
+-- name: GetUserFeeOrDefaultByUserIDAndPaymentChannelID :one
+SELECT
+    pc.id AS payment_channel_id,
+
+    COALESCE(ufo.platform_fee_fixed, pc.platform_fee_fixed) 
+        AS platform_fee_fixed,
+
+    COALESCE(ufo.platform_fee_percentage, pc.platform_fee_percentage) 
+        AS platform_fee_percentage,
+
+    pc.gateway_fee_fixed,
+    pc.gateway_fee_percentage
+
+FROM payment_channels pc
+LEFT JOIN user_fee_overrides ufo
+    ON ufo.payment_channel_id = pc.id
+    AND ufo.user_id = $1
+
+WHERE pc.id = $2
+LIMIT 1;
+
+-- name: GetAllUserFeeOverridesByUserID :many
+SELECT * FROM user_fee_overrides 
+WHERE user_id = $1;

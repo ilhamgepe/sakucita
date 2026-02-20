@@ -6,10 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type DonationService interface {
-	CreateDonation()
-}
-
 type DonationMessage struct {
 	ID                   uuid.UUID              `json:"id"`
 	PayeeUserID          uuid.UUID              `json:"payee_user_id"`
@@ -29,24 +25,4 @@ type DonationMessage struct {
 	Status               string                 `json:"status"`
 	Meta                 map[string]interface{} `json:"meta"`
 	CreatedAt            time.Time              `json:"created_at"`
-}
-
-type CreateDonationMessageRequest struct {
-	PayeeUserID string `json:"payee_user_id" form:"payee_user_id" validate:"required,uuid"`
-
-	PayerUserID *string `json:"payer_user_id,omitempty" form:"payer_user_id" validate:"omitempty,uuid"`
-
-	PayerName string  `json:"payer_name" form:"payer_name" validate:"required,min=1,max=20"`
-	Email     *string `json:"email,omitempty" form:"email" validate:"required,email"`
-	Message   *string `json:"message,omitempty" form:"message" validate:"omitempty,min=1,max=300"`
-
-	MediaType string `json:"media_type" form:"media_type" validate:"required,oneof=TEXT YOUTUBE GIF"`
-
-	// media input dari user
-	MediaURL          *string `json:"media_url,omitempty" form:"media_url" validate:"omitempty,url"`
-	MediaStartSeconds int     `json:"media_start_seconds,omitempty" form:"media_start_seconds" validate:"min=0"`
-
-	// trasaction
-	Amount         int32  `json:"amount" form:"amount" validate:"required,gte=1000"`
-	PaymentChannel string `json:"payment_channel" form:"payment_channel" validate:"required,eq=QRIS"`
 }

@@ -33,6 +33,9 @@ var (
 	ErrMsgNicknameAlreadyExists = "nickname already exists"
 	ErrMsgUserNotFound          = "user not found"
 
+	// payment channel
+	ErrMsgPaymentChannelNotFound = "payment channel not found"
+
 	// auth domain
 	ErrMsgInvalidCredentials = "invalid credentials"
 	ErrMsgSessionNotFound    = "session not found"

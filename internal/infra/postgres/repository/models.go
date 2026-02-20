@@ -252,12 +252,12 @@ type DonationMessage struct {
 	PayeeUserID       uuid.UUID
 	PayerUserID       pgtype.UUID
 	PayerName         string
-	Email             pgtype.Text
-	Message           pgtype.Text
+	Email             string
+	Message           string
 	MediaType         DonationMediaType
 	MediaUrl          pgtype.Text
-	MediaStartSeconds int32
-	ChargedSeconds    pgtype.Int4
+	MediaStartSeconds pgtype.Int4
+	MaxPlaySeconds    pgtype.Int4
 	PricePerSecond    pgtype.Int8
 	Amount            int64
 	Currency          string
@@ -265,6 +265,18 @@ type DonationMessage struct {
 	Meta              domain.JSONB
 	PlayedAt          pgtype.Timestamptz
 	CreatedAt         pgtype.Timestamptz
+}
+
+type PaymentChannel struct {
+	ID                    int32
+	Code                  string
+	Name                  string
+	GatewayFeeFixed       int64
+	GatewayFeePercentage  int64
+	PlatformFeeFixed      int64
+	PlatformFeePercentage int64
+	IsActive              bool
+	CreatedAt             pgtype.Timestamptz
 }
 
 type Role struct {
@@ -285,24 +297,29 @@ type Session struct {
 }
 
 type Transaction struct {
-	ID                uuid.UUID
-	DonationMessageID uuid.UUID
-	PayerUserID       pgtype.UUID
-	PayeeUserID       uuid.UUID
-	Amount            int64
-	FeeFixed          int64
-	FeePercentage     pgtype.Numeric
-	FeeAmount         int64
-	NetAmount         int64
-	RoundingAmount    pgtype.Numeric
-	RoundingStrategy  string
-	Currency          string
-	Status            TransactionStatus
-	ExternalReference pgtype.Text
-	Meta              []byte
-	CreatedAt         pgtype.Timestamptz
-	PaidAt            pgtype.Timestamptz
-	SettledAt         pgtype.Timestamptz
+	ID                    uuid.UUID
+	DonationMessageID     uuid.UUID
+	PaymentChannelID      int64
+	PayerUserID           pgtype.UUID
+	PayeeUserID           uuid.UUID
+	Amount                int64
+	GatewayFeeFixed       int64
+	GatewayFeePercentage  int64
+	GatewayFeeAmount      int64
+	PlatformFeeFixed      int64
+	PlatformFeePercentage int64
+	PlatformFeeAmount     int64
+	FeeFixed              int64
+	FeePercentage         int64
+	FeeAmount             int64
+	NetAmount             int64
+	Currency              string
+	Status                TransactionStatus
+	ExternalReference     pgtype.Text
+	Meta                  []byte
+	CreatedAt             pgtype.Timestamptz
+	PaidAt                pgtype.Timestamptz
+	SettledAt             pgtype.Timestamptz
 }
 
 type User struct {
@@ -318,6 +335,14 @@ type User struct {
 	CreatedAt     pgtype.Timestamptz
 	UpdatedAt     pgtype.Timestamptz
 	DeletedAt     pgtype.Timestamptz
+}
+
+type UserFeeOverride struct {
+	ID                    uuid.UUID
+	UserID                uuid.UUID
+	PaymentChannelID      int32
+	PlatformFeeFixed      int64
+	PlatformFeePercentage int64
 }
 
 type UserRole struct {
@@ -344,7 +369,7 @@ type WalletLedgerEntry struct {
 	SourceType    LedgerSourceType
 	SourceID      uuid.UUID
 	FeeFixed      int64
-	FeePercentage pgtype.Numeric
+	FeePercentage int64
 	FeeAmount     int64
 	NetAmount     int64
 	Description   pgtype.Text

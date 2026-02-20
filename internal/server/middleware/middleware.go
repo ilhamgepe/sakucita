@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"sakucita/internal/domain"
+	"sakucita/internal/app/auth/service"
 	"sakucita/internal/server/security"
 
 	"github.com/rs/zerolog"
@@ -10,9 +10,9 @@ import (
 type Middleware struct {
 	log         zerolog.Logger
 	security    *security.Security
-	authService domain.AuthService
+	authService service.AuthService
 }
 
-func NewMiddleware(log zerolog.Logger, security *security.Security, authService domain.AuthService) *Middleware {
+func NewMiddleware(log zerolog.Logger, security *security.Security, authService service.AuthService) *Middleware {
 	return &Middleware{log, security, authService}
 }

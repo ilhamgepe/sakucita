@@ -30,7 +30,7 @@ CREATE TABLE wallet_ledger_entries (
 
   -- copied snapshot for audit
   fee_fixed BIGINT NOT NULL DEFAULT 0,
-  fee_percentage NUMERIC(5,4) NOT NULL DEFAULT 0,
+  fee_percentage BIGINT NOT NULL DEFAULT 0,
   fee_amount BIGINT NOT NULL DEFAULT 0,
   net_amount BIGINT NOT NULL,
 

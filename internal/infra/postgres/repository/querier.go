@@ -14,13 +14,23 @@ import (
 type Querier interface {
 	CreateAuthIdentityLocal(ctx context.Context, arg CreateAuthIdentityLocalParams) error
 	CreateDonationMessage(ctx context.Context, arg CreateDonationMessageParams) (DonationMessage, error)
+	CreatePaymentChannel(ctx context.Context, arg CreatePaymentChannelParams) (PaymentChannel, error)
+	CreateTransaction(ctx context.Context, arg CreateTransactionParams) (Transaction, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateUserRole(ctx context.Context, arg CreateUserRoleParams) error
 	GetActiveSessionByTokenID(ctx context.Context, refreshTokenID pgtype.UUID) (Session, error)
+	GetAllUserFeeOverridesByUserID(ctx context.Context, userID uuid.UUID) ([]UserFeeOverride, error)
 	GetAuthIdentityByEmail(ctx context.Context, providerID string) (AuthIdentity, error)
+	GetPaymentChannelByCode(ctx context.Context, code string) (PaymentChannel, error)
+	GetPaymentChannelByID(ctx context.Context, id int32) (PaymentChannel, error)
+	GetPaymentChannels(ctx context.Context) ([]PaymentChannel, error)
+	GetTransactionByDonationMessageID(ctx context.Context, donationMessageID uuid.UUID) (Transaction, error)
+	GetTransactionByExternalReference(ctx context.Context, externalReference pgtype.Text) (Transaction, error)
+	GetTransactionByID(ctx context.Context, id uuid.UUID) (Transaction, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByIDWithRoles(ctx context.Context, id uuid.UUID) (GetUserByIDWithRolesRow, error)
+	GetUserFeeOrDefaultByUserIDAndPaymentChannelID(ctx context.Context, arg GetUserFeeOrDefaultByUserIDAndPaymentChannelIDParams) (GetUserFeeOrDefaultByUserIDAndPaymentChannelIDRow, error)
 	RevokeAllSessionsByUserID(ctx context.Context, userID uuid.UUID) error
 	RevokeSessionByID(ctx context.Context, arg RevokeSessionByIDParams) error
 	UpsertSession(ctx context.Context, arg UpsertSessionParams) (Session, error)

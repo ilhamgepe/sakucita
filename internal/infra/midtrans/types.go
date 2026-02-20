@@ -54,4 +54,10 @@ type MidtransQRISResponse struct {
 	Acquirer          string `json:"acquirer"`
 	QRString          string `json:"qr_string"`
 	ExpiryTime        string `json:"expiry_time"`
+
+	// for development
+	Actions []struct {
+		Name string `json:"name"`
+		Url  string `json:"url"`
+	} `json:"actions,omitempty"`
 }

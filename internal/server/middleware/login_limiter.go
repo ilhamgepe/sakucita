@@ -3,7 +3,7 @@ package middleware
 import (
 	"fmt"
 
-	"sakucita/internal/domain"
+	"sakucita/internal/dto"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -36,7 +36,7 @@ func (m *Middleware) LoginLimiter(c fiber.Ctx) error {
 
 	// 3. Kalau masih diban
 	if ttl > 0 {
-		return c.Status(fiber.StatusTooManyRequests).JSON(domain.ErrorResponse{
+		return c.Status(fiber.StatusTooManyRequests).JSON(dto.ErrorResponse{
 			Message: fiber.ErrTooManyRequests.Message,
 			Errors:  fmt.Sprintf("too many attempts. please wait after %s", ttl.String()),
 		})

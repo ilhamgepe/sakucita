@@ -4,7 +4,7 @@ import (
 	"context"
 
 	authService "sakucita/internal/app/auth/service"
-	"sakucita/internal/domain"
+	donationService "sakucita/internal/app/donation/service"
 	"sakucita/internal/infra/midtrans"
 	"sakucita/internal/infra/postgres"
 	"sakucita/internal/infra/postgres/repository"
@@ -23,7 +23,7 @@ import (
 func main() {
 	cfg := configProvider()
 	log := loggerProvider(cfg)
-	infras := databaseProvider(cfg, log)
+	infras := infrasProvider(cfg, log)
 
 	queries := repository.New(infras.postgres)
 
@@ -55,23 +55,25 @@ func securityProvider(cfg config.App, log zerolog.Logger) *security.Security {
 
 // service provider
 type services struct {
-	authService domain.AuthService
+	authService     authService.AuthService
+	donationService donationService.DonationService
 }
 
-func serviceProvider(config config.App, log zerolog.Logger, databases *infras, queries *repository.Queries, security *security.Security) *services {
+func serviceProvider(config config.App, log zerolog.Logger, infras *infras, queries *repository.Queries, security *security.Security) *services {
 	return &services{
-		authService: authService.NewService(databases.postgres, databases.redis, queries, config, security, log),
+		authService:     authService.NewService(infras.postgres, infras.redis, queries, config, security, log),
+		donationService: donationService.NewService(infras.postgres, queries, log, infras.midtransClient),
 	}
 }
 
-// database provider
+// infras provider
 type infras struct {
 	postgres       *pgxpool.Pool
 	redis          *redis.Client
-	midtransClient *midtrans.MidtransClient
+	midtransClient midtrans.MidtransClient
 }
 
-func databaseProvider(cfg config.App, log zerolog.Logger) *infras {
+func infrasProvider(cfg config.App, log zerolog.Logger) *infras {
 	pg, err := postgres.NewDB(context.Background(), cfg, log)
 	if err != nil {
 		panic(err)
@@ -108,6 +110,10 @@ func loggerProvider(cfg config.App) zerolog.Logger {
 // server provider
 func ServerHTTPProvider(cfg config.App, log zerolog.Logger, services *services, middleware *middleware.Middleware, infras *infras) *server.Server {
 	return server.NewServer(
-		cfg, log, services.authService, middleware, infras.midtransClient,
+		cfg,
+		log,
+		services.authService,
+		services.donationService,
+		middleware,
 	)
 }

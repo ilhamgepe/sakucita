@@ -10,9 +10,10 @@ import (
 	"time"
 
 	authHandlerHTTP "sakucita/internal/app/auth/delivery/http"
+	authService "sakucita/internal/app/auth/service"
 	donationHandler "sakucita/internal/app/donation/delivery/http"
-	"sakucita/internal/domain"
-	"sakucita/internal/infra/midtrans"
+	donationService "sakucita/internal/app/donation/service"
+
 	"sakucita/internal/server/middleware"
 	"sakucita/pkg/config"
 
@@ -33,15 +34,14 @@ type Server struct {
 type handlers struct {
 	authHandler     *authHandlerHTTP.Handler
 	donationHandler *donationHandler.Handler
-	midtransClient  *midtrans.MidtransClient
 }
 
 func NewServer(
 	config config.App,
 	log zerolog.Logger,
-	authService domain.AuthService,
+	authService authService.AuthService,
+	donationService donationService.DonationService,
 	middleware *middleware.Middleware,
-	midtransClient *midtrans.MidtransClient,
 ) *Server {
 	// setup validator
 	validator := validator.New()
@@ -65,7 +65,7 @@ func NewServer(
 
 	// setup handler
 	authHandler := authHandlerHTTP.NewHandler(config, log, validator, authService, middleware)
-	donationHandler := donationHandler.NewHandler(config, log, validator, middleware, midtransClient)
+	donationHandler := donationHandler.NewHandler(config, log, validator, middleware, donationService)
 	return &Server{
 		app:       app,
 		log:       log,
