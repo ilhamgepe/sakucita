@@ -14,7 +14,7 @@ CREATE TABLE transactions (
     REFERENCES donation_messages(id)
     ON DELETE RESTRICT,
 
-  payment_channel_id BIGINT NOT NULL
+  payment_channel_id INT NOT NULL
     REFERENCES payment_channels(id),
 
   payer_user_id UUID,

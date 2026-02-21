@@ -16,7 +16,7 @@ type midtransClient struct {
 }
 
 type MidtransClient interface {
-	CreateQRIS(ctx context.Context, amount int64, payerName, payerEmail string) (*MidtransQRISResponse, error)
+	CreateQRIS(ctx context.Context, amount int64, payerName, payerEmail string, midtransQRISFee int64) (*MidtransQRISResponse, error)
 }
 
 func NewMidtransClient(config config.App, log zerolog.Logger) MidtransClient {

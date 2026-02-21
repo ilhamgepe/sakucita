@@ -17,10 +17,14 @@ type CreateDonationCommand struct {
 	MediaStartSeconds *int32
 
 	// Transaction
-	Amount         int32
+	Amount         int64
 	PaymentChannel string
 }
 
 type CreateDonationResult struct {
-	ID uuid.UUID
+	TransactionID string `json:"transaction_id"`
+	Amount        int64  `json:"amount"`
+	Currency      string `json:"currency"`
+	Status        string `json:"status"`
+	QrString      string `json:"qr_string"`
 }

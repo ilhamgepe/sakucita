@@ -42,7 +42,7 @@ func (q *Queries) GetAllUserFeeOverridesByUserID(ctx context.Context, userID uui
 	return items, nil
 }
 
-const getUserFeeOrDefaultByUserIDAndPaymentChannelID = `-- name: GetUserFeeOrDefaultByUserIDAndPaymentChannelID :one
+const getUserFee = `-- name: GetUserFee :one
 SELECT
     pc.id AS payment_channel_id,
 
@@ -64,12 +64,12 @@ WHERE pc.id = $2
 LIMIT 1
 `
 
-type GetUserFeeOrDefaultByUserIDAndPaymentChannelIDParams struct {
-	UserID uuid.UUID
-	ID     int32
+type GetUserFeeParams struct {
+	Userid           uuid.UUID
+	Paymentchannelid int32
 }
 
-type GetUserFeeOrDefaultByUserIDAndPaymentChannelIDRow struct {
+type GetUserFeeRow struct {
 	PaymentChannelID      int32
 	PlatformFeeFixed      int64
 	PlatformFeePercentage int64
@@ -77,9 +77,9 @@ type GetUserFeeOrDefaultByUserIDAndPaymentChannelIDRow struct {
 	GatewayFeePercentage  int64
 }
 
-func (q *Queries) GetUserFeeOrDefaultByUserIDAndPaymentChannelID(ctx context.Context, arg GetUserFeeOrDefaultByUserIDAndPaymentChannelIDParams) (GetUserFeeOrDefaultByUserIDAndPaymentChannelIDRow, error) {
-	row := q.db.QueryRow(ctx, getUserFeeOrDefaultByUserIDAndPaymentChannelID, arg.UserID, arg.ID)
-	var i GetUserFeeOrDefaultByUserIDAndPaymentChannelIDRow
+func (q *Queries) GetUserFee(ctx context.Context, arg GetUserFeeParams) (GetUserFeeRow, error) {
+	row := q.db.QueryRow(ctx, getUserFee, arg.Userid, arg.Paymentchannelid)
+	var i GetUserFeeRow
 	err := row.Scan(
 		&i.PaymentChannelID,
 		&i.PlatformFeeFixed,

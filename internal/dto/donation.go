@@ -23,7 +23,7 @@ type CreateDonationRequest struct {
 	MediaStartSeconds *int32  `json:"media_start_seconds,omitempty" form:"media_start_seconds"`
 
 	// Transaction
-	Amount         int32  `json:"amount" form:"amount"`
+	Amount         int64  `json:"amount" form:"amount"`
 	PaymentChannel string `json:"payment_channel" form:"payment_channel"`
 }
 
@@ -66,8 +66,12 @@ func (r *CreateDonationRequest) Validate() error {
 		return errors.New("Amount must be at least 1000")
 	}
 
-	if r.PaymentChannel != "QRIS" {
-		return errors.New("PaymentChannel must be QRIS")
+	if r.Amount > 100_000_000 {
+		return errors.New("Amount cannot exceed 100,000,000")
+	}
+
+	if r.PaymentChannel != "qris" {
+		return errors.New("PaymentChannel must be qris")
 	}
 
 	// Media type specific validations

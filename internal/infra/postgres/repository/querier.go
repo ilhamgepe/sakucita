@@ -30,7 +30,7 @@ type Querier interface {
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByIDWithRoles(ctx context.Context, id uuid.UUID) (GetUserByIDWithRolesRow, error)
-	GetUserFeeOrDefaultByUserIDAndPaymentChannelID(ctx context.Context, arg GetUserFeeOrDefaultByUserIDAndPaymentChannelIDParams) (GetUserFeeOrDefaultByUserIDAndPaymentChannelIDRow, error)
+	GetUserFee(ctx context.Context, arg GetUserFeeParams) (GetUserFeeRow, error)
 	RevokeAllSessionsByUserID(ctx context.Context, userID uuid.UUID) error
 	RevokeSessionByID(ctx context.Context, arg RevokeSessionByIDParams) error
 	UpsertSession(ctx context.Context, arg UpsertSessionParams) (Session, error)
