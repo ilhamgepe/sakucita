@@ -47,6 +47,7 @@ func middlewareProvider(log zerolog.Logger, security *security.Security, serserv
 func securityProvider(cfg config.App, log zerolog.Logger) *security.Security {
 	security := security.NewSecurity(cfg, log)
 	if err := security.LoadRSAKeys(cfg.JWT.KeyDirPath); err != nil {
+		log.Error().Err(err).Msg("failed to load RSA")
 		panic(err)
 	}
 

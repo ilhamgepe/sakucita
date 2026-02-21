@@ -16,9 +16,16 @@ const createTransaction = `-- name: CreateTransaction :one
 INSERT INTO transactions (
   id,
   donation_message_id,
+  payment_channel_id,
   payer_user_id,
   payee_user_id,
   amount,
+  gateway_fee_fixed,
+  gateway_fee_percentage,
+  gateway_fee_amount,
+  platform_fee_fixed,
+  platform_fee_percentage,
+  platform_fee_amount,
   fee_fixed,
   fee_percentage,
   fee_amount,
@@ -27,32 +34,46 @@ INSERT INTO transactions (
   status,
   external_reference
 ) VALUES (
-  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12
+  $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19
 ) RETURNING id, donation_message_id, payment_channel_id, payer_user_id, payee_user_id, amount, gateway_fee_fixed, gateway_fee_percentage, gateway_fee_amount, platform_fee_fixed, platform_fee_percentage, platform_fee_amount, fee_fixed, fee_percentage, fee_amount, net_amount, currency, status, external_reference, meta, created_at, paid_at, settled_at
 `
 
 type CreateTransactionParams struct {
-	ID                uuid.UUID
-	DonationMessageID uuid.UUID
-	PayerUserID       pgtype.UUID
-	PayeeUserID       uuid.UUID
-	Amount            int64
-	FeeFixed          int64
-	FeePercentage     int64
-	FeeAmount         int64
-	NetAmount         int64
-	Currency          string
-	Status            TransactionStatus
-	ExternalReference pgtype.Text
+	ID                    uuid.UUID
+	DonationMessageID     uuid.UUID
+	PaymentChannelID      int32
+	PayerUserID           pgtype.UUID
+	PayeeUserID           uuid.UUID
+	Amount                int64
+	GatewayFeeFixed       int64
+	GatewayFeePercentage  int64
+	GatewayFeeAmount      int64
+	PlatformFeeFixed      int64
+	PlatformFeePercentage int64
+	PlatformFeeAmount     int64
+	FeeFixed              int64
+	FeePercentage         int64
+	FeeAmount             int64
+	NetAmount             int64
+	Currency              string
+	Status                TransactionStatus
+	ExternalReference     pgtype.Text
 }
 
 func (q *Queries) CreateTransaction(ctx context.Context, arg CreateTransactionParams) (Transaction, error) {
 	row := q.db.QueryRow(ctx, createTransaction,
 		arg.ID,
 		arg.DonationMessageID,
+		arg.PaymentChannelID,
 		arg.PayerUserID,
 		arg.PayeeUserID,
 		arg.Amount,
+		arg.GatewayFeeFixed,
+		arg.GatewayFeePercentage,
+		arg.GatewayFeeAmount,
+		arg.PlatformFeeFixed,
+		arg.PlatformFeePercentage,
+		arg.PlatformFeeAmount,
 		arg.FeeFixed,
 		arg.FeePercentage,
 		arg.FeeAmount,

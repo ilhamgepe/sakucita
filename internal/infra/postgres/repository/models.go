@@ -299,7 +299,7 @@ type Session struct {
 type Transaction struct {
 	ID                    uuid.UUID
 	DonationMessageID     uuid.UUID
-	PaymentChannelID      int64
+	PaymentChannelID      int32
 	PayerUserID           pgtype.UUID
 	PayeeUserID           uuid.UUID
 	Amount                int64

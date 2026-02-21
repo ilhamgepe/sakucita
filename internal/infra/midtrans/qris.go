@@ -11,12 +11,14 @@ func (c *midtransClient) CreateQRIS(
 	ctx context.Context,
 	amount int64,
 	payerName, payerEmail string,
+	midtransQRISFee int64,
+
 ) (*MidtransQRISResponse, error) {
 	req := MidtransQRISRequest{
 		PaymentType: "qris",
 		TransactionDetails: MidtransTransactionDetails{
 			OrderID:     uuid.New().String(),
-			GrossAmount: int64(amount) + int64(750),
+			GrossAmount: int64(amount) + int64(midtransQRISFee),
 		},
 		ItemDetails: []MidtransItemDetail{
 			{
@@ -27,9 +29,9 @@ func (c *midtransClient) CreateQRIS(
 			},
 			{
 				ID:       uuid.New().String(),
-				Price:    750,
+				Price:    midtransQRISFee,
 				Quantity: 1,
-				Name:     "donation fee",
+				Name:     "payment gatewway fee",
 			},
 		},
 		CustomerDetails: &MidtransCustomerDetails{
